@@ -239,9 +239,24 @@ exports.getInventory = async (req, res) => {
 
 exports.createInventoryItem = async (req, res) => {
   try {
-    const item = await Inventory.create({ ...req.body, company: req.companyId || req.body.company, createdBy: req.user.id });
+    const mongoose = require('mongoose');
+    const itemData = { ...req.body };
+    
+    // If supplier is not a valid ObjectId (e.g., a name like "rajesh"), remove it or handle it
+    if (itemData.supplier && !mongoose.Types.ObjectId.isValid(itemData.supplier)) {
+      delete itemData.supplier;
+    }
+
+    const item = await Inventory.create({ 
+      ...itemData, 
+      company: req.companyId || req.user.company || req.body.company, 
+      createdBy: req.user.id 
+    });
     res.status(201).json({ success: true, item });
-  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+  } catch (error) { 
+    console.error("CREATE INVENTORY ERROR:", error);
+    res.status(500).json({ success: false, message: error.message || 'Server error' }); 
+  }
 };
 
 exports.updateInventoryItem = async (req, res) => {

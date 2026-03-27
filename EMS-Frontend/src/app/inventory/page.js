@@ -17,6 +17,7 @@ export default function InventoryPage() {
   const [form, setForm] = useState({ name: '', sku: '', category: '', unit: 'pcs', quantity: 0, reorderLevel: 10, purchasePrice: 0, sellingPrice: 0, description: '', supplier: '' });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ total: 0, inStock: 0, lowStock: 0, outOfStock: 0, totalValue: 0 });
+  const [vendors, setVendors] = useState([]);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [confirm, setConfirm] = useState({ show: false, msg: '', onConfirm: null, id: null });
 
@@ -50,6 +51,7 @@ export default function InventoryPage() {
   }, [page, search, category, stockFilter]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => { erpAPI.getVendors().then(r => setVendors(r.data.vendors || [])).catch(() => {}); }, []);
 
   const openCreate = () => {
     setEditItem(null);
@@ -212,7 +214,7 @@ export default function InventoryPage() {
 
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal modal-lg" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="modal modal-md" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="modal-header">
               <h2>{editItem ? 'Edit Item' : 'Add Inventory Item'}</h2>
               <button className="icon-btn" onClick={() => setShowModal(false)}>
@@ -271,7 +273,10 @@ export default function InventoryPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Supplier</label>
-                    <input className="form-control" value={form.supplier} onChange={e => setForm({ ...form, supplier: e.target.value })} placeholder="Supplier name" />
+                    <select className="form-control" value={form.supplier} onChange={e => setForm({ ...form, supplier: e.target.value })}>
+                      <option value="">Select Vendor</option>
+                      {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
+                    </select>
                   </div>
                 </div>
                 <div className="form-group">
