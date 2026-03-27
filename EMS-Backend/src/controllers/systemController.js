@@ -1,0 +1,236 @@
+const { Company, Branch, Notification, Announcement, Ticket, Holiday, Document } = require('../models/System');
+
+// ---- COMPANY ----
+exports.getCompanies = async (req, res) => {
+  try {
+    const companies = await Company.find().sort({ createdAt: -1 });
+    res.status(200).json({ success: true, companies });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.getCompany = async (req, res) => {
+  try {
+    const company = await Company.findById(req.params.id || req.user.company);
+    if (!company) return res.status(404).json({ success: false, message: 'Company not found' });
+    res.status(200).json({ success: true, company });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.createCompany = async (req, res) => {
+  try {
+    const company = await Company.create({ ...req.body, createdBy: req.user.id });
+    res.status(201).json({ success: true, company });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.updateCompany = async (req, res) => {
+  try {
+    const company = await Company.findByIdAndUpdate(req.params.id || req.user.company, req.body, { new: true });
+    res.status(200).json({ success: true, company });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+// ---- BRANCHES ----
+exports.getBranches = async (req, res) => {
+  try {
+    const query = {};
+    if (req.companyId) query.company = req.companyId;
+    const branches = await Branch.find(query).populate({ path: 'manager', populate: { path: 'user', select: 'firstName lastName' } });
+    res.status(200).json({ success: true, branches });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.createBranch = async (req, res) => {
+  try {
+    const branch = await Branch.create({
+      ...req.body,
+      company: req.companyId || req.body.company || req.user.company
+    });
+    res.status(201).json({ success: true, branch });
+  } catch (error) {
+    console.error('Create Branch Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.updateBranch = async (req, res) => {
+  try {
+    const branch = await Branch.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json({ success: true, branch });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.deleteBranch = async (req, res) => {
+  try {
+    await Branch.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: 'Branch deleted' });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+// ---- NOTIFICATIONS ----
+exports.getNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find({ user: req.user.id })
+      .sort({ createdAt: -1 }).limit(50);
+    const unreadCount = await Notification.countDocuments({ user: req.user.id, isRead: false });
+    res.status(200).json({ success: true, notifications, unreadCount });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.markAsRead = async (req, res) => {
+  try {
+    if (req.params.id === 'all') {
+      await Notification.updateMany({ user: req.user.id }, { isRead: true, readAt: new Date() });
+    } else {
+      await Notification.findByIdAndUpdate(req.params.id, { isRead: true, readAt: new Date() });
+    }
+    res.status(200).json({ success: true });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+// ---- ANNOUNCEMENTS ----
+exports.getAnnouncements = async (req, res) => {
+  try {
+    const query = {};
+    if (req.companyId) query.company = req.companyId;
+    query.isActive = true;
+    const announcements = await Announcement.find(query)
+      .populate('createdBy', 'firstName lastName')
+      .sort({ createdAt: -1 });
+    res.status(200).json({ success: true, announcements });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.createAnnouncement = async (req, res) => {
+  try {
+    const { title, content, type, targetAudience, publishDate, expiryDate } = req.body;
+    const companyId = req.companyId || req.body.company || req.user.company;
+
+    if (!companyId) {
+      console.error('Create Announcement Error: No company ID found');
+      return res.status(400).json({ success: false, message: 'No company context found. Please ensure your account belongs to a company.' });
+    }
+
+    let announcement = await Announcement.create({
+      title,
+      content,
+      type: type || 'general',
+      company: companyId,
+      createdBy: req.user.id,
+      startDate: publishDate || new Date(),
+      endDate: expiryDate,
+      isActive: true
+    });
+
+    announcement = await announcement.populate('createdBy', 'firstName lastName');
+
+    res.status(201).json({ success: true, announcement });
+  } catch (error) {
+    console.error('Create Announcement Detailed Error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ success: false, message: 'Server error', details: error.message });
+  }
+};
+
+exports.updateAnnouncement = async (req, res) => {
+  try {
+    const announcement = await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json({ success: true, announcement });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.deleteAnnouncement = async (req, res) => {
+  try {
+    await Announcement.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: 'Announcement deleted' });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+// ---- TICKETS ----
+exports.getTickets = async (req, res) => {
+  try {
+    const query = {};
+    if (req.companyId) query.company = req.companyId;
+    if (req.user.role === 'employee') query.createdBy = req.user.id;
+    if (req.query.status) query.status = req.query.status;
+    const tickets = await Ticket.find(query)
+      .populate('createdBy', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName')
+      .sort({ createdAt: -1 });
+    res.status(200).json({ success: true, tickets });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.createTicket = async (req, res) => {
+  try {
+    const { subject, description, category, priority } = req.body;
+    const companyId = req.companyId || req.body.company || req.user.company;
+
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: 'Company context required' });
+    }
+
+    const count = await Ticket.countDocuments({ company: companyId });
+    const ticketNumber = `TKT-${String(count + 1).padStart(5, '0')}`;
+    let ticket = await Ticket.create({
+      title: subject,
+      description,
+      category,
+      priority,
+      ticketNumber,
+      company: companyId,
+      createdBy: req.user.id
+    });
+    ticket = await ticket.populate('createdBy', 'firstName lastName');
+    res.status(201).json({ success: true, ticket });
+  } catch (error) {
+    console.error('Create Ticket Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.updateTicket = async (req, res) => {
+  try {
+    const ticket = await Ticket.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json({ success: true, ticket });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.replyTicket = async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    ticket.replies.push({ user: req.user.id, message: req.body.message });
+    await ticket.save();
+    res.status(200).json({ success: true, ticket });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+// ---- HOLIDAYS ----
+exports.getHolidays = async (req, res) => {
+  try {
+    const query = {};
+    if (req.companyId) query.company = req.companyId;
+    const holidays = await Holiday.find(query).sort({ date: 1 });
+    res.status(200).json({ success: true, holidays });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+exports.createHoliday = async (req, res) => {
+  try {
+    const holiday = await Holiday.create({
+      ...req.body,
+      company: req.companyId || req.body.company || req.user.company
+    });
+    res.status(201).json({ success: true, holiday });
+  } catch (error) {
+    console.error('Create Holiday Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.deleteHoliday = async (req, res) => {
+  try {
+    await Holiday.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: 'Holiday deleted' });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
