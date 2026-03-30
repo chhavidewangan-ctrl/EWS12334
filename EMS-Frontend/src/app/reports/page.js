@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { systemAPI } from '../../services/api';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const REPORT_TYPES = [
   { id:'employee', label:'Employee Report' },
@@ -78,21 +78,60 @@ export default function ReportsPage() {
     }
 
     if (type === 'attendance') {
-      const chartData = Array.isArray(data) ? data.map(d => ({ name: d._id?.replace('_',' '), value: d.count })) : [];
+      const chartData = Array.isArray(data) ? data.map(d => ({ name: d._id?.toUpperCase().replace('_',' '), value: d.count })) : [];
+      const total = chartData.reduce((s,d)=>s+d.value,0);
+      
       return (
-        <div className="card">
-          <div className="card-header"><span className="card-title">Attendance by Status</span></div>
-          <div className="card-body">
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="name" tick={{ fontSize:11, fill:'var(--text-muted)' }} />
-                  <YAxis tick={{ fontSize:11, fill:'var(--text-muted)' }} />
-                  <Tooltip contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8 }} />
-                  <Bar dataKey="value" name="Count" fill="#6366f1" radius={[4,4,0,0]} />
-                </BarChart>
-              </ResponsiveContainer>
+        <div className="dashboard-grid">
+          <div className="card">
+            <div className="card-header"><span className="card-title">Status Distribution</span></div>
+            <div className="card-body">
+              <div className="chart-container" style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={chartData} 
+                      cx="50%" cy="50%" 
+                      innerRadius={60} 
+                      outerRadius={100} 
+                      paddingAngle={5} 
+                      dataKey="value"
+                    >
+                      {chartData.map((d,i)=><Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8, fontSize:12 }}
+                      formatter={(val) => [`${val} Employees`, 'Count']}
+                    />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ textAlign: 'center', marginTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>
+                Total Records: <strong>{total}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header"><span className="card-title">Engagement Overview</span></div>
+            <div className="card-body">
+              <div className="chart-container" style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize:10, fill:'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize:10, fill:'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      cursor={{fill: 'var(--bg-hover)'}}
+                      contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8, fontSize:12 }}
+                    />
+                    <Bar dataKey="value" name="Total" radius={[6, 6, 0, 0]}>
+                      {chartData.map((d,i)=><Cell key={i} fill={COLORS[i % COLORS.length]} opacity={0.8} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
@@ -122,35 +161,85 @@ export default function ReportsPage() {
     }
 
     if (type === 'sales' || type === 'expense') {
-      const chartData = (Array.isArray(data)?data:[]).map(d => ({
-        month: MONTHS[(d._id||1)-1],
-        total: d.total,
-        count: d.count
-      }));
+      const expenses = (Array.isArray(data)?data:[]).map(d=>({ name:d._id||'Other', total:d.total }));
+      const totalSpending = expenses.reduce((s,d)=>s+d.total,0);
+      const topCategory = expenses.length > 0 ? expenses.sort((a,b)=>b.total-a.total)[0] : null;
+
       return (
-        <div className="card">
-          <div className="card-header"><span className="card-title">{type === 'sales' ? 'Monthly Sales' : 'Expense by Category'}</span></div>
-          <div className="card-body">
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height="100%">
-                {type === 'sales' ? (
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="month" tick={{ fontSize:11, fill:'var(--text-muted)' }} />
-                    <YAxis tick={{ fontSize:11, fill:'var(--text-muted)' }} tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={v=>`₹${v.toLocaleString('en-IN')}`} contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8 }} />
-                    <Line type="monotone" dataKey="total" name="Sales" stroke="#10b981" strokeWidth={3} dot={{ fill:'#10b981' }} />
-                  </LineChart>
-                ) : (
-                  <BarChart data={(Array.isArray(data)?data:[]).map(d=>({ name:d._id, total:d.total }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" tick={{ fontSize:11, fill:'var(--text-muted)' }} />
-                    <YAxis tick={{ fontSize:11, fill:'var(--text-muted)' }} tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={v=>`₹${v.toLocaleString('en-IN')}`} contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8 }} />
-                    <Bar dataKey="total" name="Expense" fill="#ef4444" radius={[4,4,0,0]} />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
+        <div>
+          {type === 'expense' && (
+            <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+              <div className="card" style={{ padding: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--danger)' }}>{fmt(totalSpending)}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Total Spending</div>
+              </div>
+              <div className="card" style={{ padding: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--primary)', textTransform: 'capitalize' }}>{topCategory?.name || '-'}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Highest Category</div>
+              </div>
+              <div className="card" style={{ padding: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--success)' }}>{expenses.length}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Categories Active</div>
+              </div>
+            </div>
+          )}
+
+          <div className="dashboard-grid">
+            <div className="card">
+              <div className="card-header"><span className="card-title">{type === 'sales' ? 'Profitability Analysis' : 'Breakdown by Category'}</span></div>
+              <div className="card-body">
+                <div className="chart-container" style={{ height: 300 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={expenses} 
+                        cx="50%" cy="50%" 
+                        innerRadius={70} 
+                        outerRadius={100} 
+                        paddingAngle={4} 
+                        dataKey="total"
+                      >
+                        {expenses.map((d,i)=><Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={v=>fmt(v)} contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8, fontSize:12 }} />
+                      <Legend verticalAlign="bottom" align="center" iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header"><span className="card-title">Expense Trend Analysis</span></div>
+              <div className="card-body">
+                <div className="chart-container" style={{ height: 300 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    {type === 'sales' ? (
+                      <LineChart data={expenses}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize:10, fill:'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize:10, fill:'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} />
+                        <Tooltip formatter={v=>fmt(v)} contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8, fontSize:12 }} />
+                        <Line type="monotone" dataKey="total" name="Sales" stroke="#10b981" strokeWidth={3} dot={{ fill:'#10b981' }} />
+                      </LineChart>
+                    ) : (
+                      <BarChart data={expenses}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize:10, fill:'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize:10, fill:'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} />
+                        <Tooltip formatter={v=>fmt(v)} contentStyle={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:8, fontSize:12 }} />
+                        <Bar 
+                          dataKey="total" 
+                          name="Spending" 
+                          radius={[6, 6, 0, 0]}
+                        >
+                           {expenses.map((d,i)=><Cell key={i} fill={COLORS[i % COLORS.length]} opacity={0.8} />)}
+                        </Bar>
+                      </BarChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ const Leave = require('../models/Leave');
 const Payroll = require('../models/Payroll');
 const { Project, Task } = require('../models/Project');
 const { Invoice, Expense, Sales } = require('../models/ERP');
+const { Announcement } = require('../models/System');
 
 // @desc Get dashboard overview
 // @route GET /api/dashboard
@@ -11,6 +12,56 @@ exports.getDashboard = async (req, res) => {
   try {
     const query = {};
     if (req.companyId) query.company = req.companyId;
+
+    if (req.user.role === 'employee') {
+      const emp = await Employee.findOne({ user: req.user.id });
+      if (!emp) return res.status(404).json({ success: false, message: 'Employee profile not found' });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Personal Attendance
+      const myAttendanceToday = await Attendance.findOne({ employee: emp._id, date: today });
+      
+      // Personal Leaves
+      const myLeaves = await Leave.find({ employee: emp._id }).sort({ createdAt: -1 }).limit(5);
+
+      // Personal Tasks
+      const myTasks = await Task.find({ assignedTo: emp._id, status: { $ne: 'completed' } })
+        .populate('project', 'name')
+        .sort({ deadline: 1 }).limit(5);
+
+      // Announcements
+      const announcements = await Announcement.find({ 
+        company: req.companyId,
+        isActive: true,
+        targetRoles: { $in: ['all', 'employee'] }
+      }).populate('createdBy', 'firstName lastName').sort({ createdAt: -1 }).limit(5);
+
+      // Attendance Trend (Personal)
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const att = await Attendance.findOne({ employee: emp._id, date: d });
+        last7Days.push({ date: d.toISOString().split('T')[0], status: att ? att.status : 'absent' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        dashboard: {
+          role: 'employee',
+          employee: emp,
+          attendanceToday: myAttendanceToday,
+          leaves: myLeaves,
+          tasks: myTasks,
+          announcements,
+          attendanceTrend: last7Days,
+          leaveBalance: emp.leaveBalance || { casual: 0, sick: 0, earned: 0 }
+        }
+      });
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

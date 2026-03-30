@@ -64,7 +64,7 @@ const navConfig = [
   }
 ];
 
-function Sidebar({ collapsed, mobileOpen }) {
+function Sidebar({ collapsed, mobileOpen, closeMobile }) {
   const pathname = usePathname();
   const { user } = useAuth();
   const role = user?.role || 'employee';
@@ -98,6 +98,7 @@ function Sidebar({ collapsed, mobileOpen }) {
                     href={item.href}
                     className={`nav-item ${isActive ? 'active' : ''}`}
                     title={collapsed ? item.label : ''}
+                    onClick={() => { if (typeof window !== 'undefined' && window.innerWidth <= 1024) closeMobile(); }}
                   >
                     <Icon path={item.icon} size={18} />
                     <span className="nav-item-text">{item.label}</span>
@@ -327,9 +328,18 @@ function DashboardLayout({ children }) {
 
   return (
     <div className="app-layout">
-      <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} />
+      <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} closeMobile={() => setMobileOpen(false)} />
       <div className={`main-content ${collapsed ? 'sidebar-collapsed' : ''}`}>
-        <Navbar onToggleSidebar={() => setCollapsed(!collapsed)} collapsed={collapsed} />
+        <Navbar 
+          onToggleSidebar={() => {
+            if (window.innerWidth <= 1024) {
+              setMobileOpen(!mobileOpen);
+            } else {
+              setCollapsed(!collapsed);
+            }
+          }} 
+          collapsed={collapsed} 
+        />
         <main className="page-content">
           {children}
         </main>

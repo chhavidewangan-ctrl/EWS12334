@@ -14,7 +14,6 @@ export default function TicketsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ subject:'', description:'', category:'general', priority:'medium' });
   const [saving, setSaving] = useState(false);
-  const [selectedTickets, setSelectedTickets] = useState([]);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
 
   const showToast = (msg, type = 'success') => {
@@ -80,32 +79,11 @@ export default function TicketsPage() {
 
       <div style={{ display:'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap:16 }}>
         <div>
-          <div className="filter-bar" style={{ marginBottom:12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <input type="checkbox" style={{ width:18, height:18, cursor:'pointer' }}
-                checked={tickets.length > 0 && selectedTickets.length === tickets.length}
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedTickets(tickets.map(t => t._id));
-                  else setSelectedTickets([]);
-                }}
-              />
-              <select className="form-control" style={{ width:130 }} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
-                <option value="">All Status</option>
-                {['open','in_progress', 'resolved','closed'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
-              </select>
-            </div>
-            {selectedTickets.length > 0 && (
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                <span style={{ fontSize:12, color:'var(--text-muted)' }}>{selectedTickets.length} selected</span>
-                <button className="btn btn-danger btn-sm" onClick={() => {
-                  if(confirm(`Delete ${selectedTickets.length} tickets?`)) {
-                    // Logic for bulk delete would go here, for now just clear
-                    setSelectedTickets([]);
-                    showToast('Bulk delete not implemented in backend yet', 'warning');
-                  }
-                }}>Delete</button>
-              </div>
-            )}
+          <div className="filter-bar" style={{ marginBottom:12 }}>
+            <select className="form-control" style={{ width:160 }} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+              <option value="">Filter by Status</option>
+              {['open','in_progress', 'resolved','closed'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
+            </select>
           </div>
 
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -118,19 +96,9 @@ export default function TicketsPage() {
               </div>
             ) : tickets.map(t => (
               <div key={t._id} className="card"
-                style={{ padding:16, cursor:'pointer', border: selected?._id===t._id ? '2px solid var(--primary)' : '1px solid var(--border)', position: 'relative' }}>
-                <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>
-                  <input type="checkbox" style={{ width:16, height:16, cursor:'pointer' }}
-                    checked={selectedTickets.includes(t._id)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      if (e.target.checked) setSelectedTickets(prev => [...prev, t._id]);
-                      else setSelectedTickets(prev => prev.filter(id => id !== t._id));
-                    }}
-                    onClick={e => e.stopPropagation()}
-                  />
-                </div>
-                <div onClick={() => setSelected(t)} style={{ paddingLeft: 30 }}>
+                onClick={() => setSelected(t)}
+                style={{ padding:16, cursor:'pointer', border: selected?._id===t._id ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
+                <div>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                     <div style={{ display:'flex', gap:4 }}>
                       <span className={`tag tag-${STATUS_C[t.status]||'secondary'}`}>{t.status?.replace('_',' ')}</span>

@@ -28,6 +28,174 @@ function StatCard({ icon, label, value, change, changeType, iconBg, iconColor })
   );
 }
 
+function EmployeeDashboard({ d }) {
+  const formatTime = (date) => date ? new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  
+  return (
+    <div className="animate-in">
+      <div className="page-header">
+        <div className="page-header-left">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="avatar" style={{ width: 56, height: 56, background: 'var(--primary)', color: 'white', fontSize: 24, borderRadius: '50%', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              {d.employee?.user?.firstName?.[0]}{d.employee?.user?.lastName?.[0]}
+            </div>
+            <div>
+              <h1 style={{ marginBottom: 4 }}>Hello, {d.employee?.user?.firstName}! 👋</h1>
+              <p style={{ color: 'var(--text-muted)' }}>{d.employee?.designation} • {d.employee?.employeeId}</p>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Link href="/leaves" className="btn btn-primary btn-sm" style={{ padding: '8px 16px', height: 'fit-content' }}>
+            Apply Leave
+          </Link>
+          <Link href="/attendance" className="btn btn-secondary btn-sm" style={{ padding: '8px 16px', height: 'fit-content' }}>
+            Punch In/Out
+          </Link>
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: 24 }}>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: d.attendanceToday ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: d.attendanceToday ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0" /></svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 2 }}>Today's Status</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {d.attendanceToday ? d.attendanceToday.status.toUpperCase() : 'Not Checked In'}
+              {d.attendanceToday && <span style={{ fontSize: 11, marginLeft: 6, fontWeight: 400, color: 'var(--text-muted)' }}>({formatTime(d.attendanceToday.checkIn)})</span>}
+            </div>
+          </div>
+        </div>
+        
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(99,102,241,0.1)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          </div>
+          <div style={{ display: 'flex', flex: 1, justifyContent: 'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 2 }}>Leave Balance</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{(d.leaveBalance?.casual || 0) + (d.leaveBalance?.sick || 0)} Days</div>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-muted)' }}>
+              <div>{d.leaveBalance?.casual} Casual</div>
+              <div>{d.leaveBalance?.sick} Sick</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 2 }}>My Tasks</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{d.tasks?.length || 0} Pending</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Pending Tasks</span>
+            <Link href="/tasks" style={{ fontSize: 12, color: 'var(--primary)' }}>View all</Link>
+          </div>
+          <div className="card-body" style={{ padding: '12px 0' }}>
+            {(d.tasks || []).length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: 14 }}>No pending tasks! Enjoy your day. ✨</p>
+              </div>
+            ) : (
+              <div className="table-wrapper" style={{ border: 'none' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Project</th>
+                      <th>Deadline</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.tasks.map(t => (
+                      <tr key={t._id}>
+                        <td style={{ fontWeight: 500 }}>{t.title}</td>
+                        <td>{t.project?.name}</td>
+                        <td>{new Date(t.deadline).toLocaleDateString('en-IN')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Recent Leaves</span>
+            <Link href="/leaves" style={{ fontSize: 12, color: 'var(--primary)' }}>History</Link>
+          </div>
+          <div className="card-body" style={{ padding: '12px 0' }}>
+            {(d.leaves || []).length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: 14 }}>No recent leave requests.</p>
+              </div>
+            ) : (
+              <div className="table-wrapper" style={{ border: 'none' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Days</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.leaves.map(l => (
+                      <tr key={l._id}>
+                        <td style={{ textTransform: 'capitalize' }}>{l.leaveType}</td>
+                        <td>{l.totalDays}</td>
+                        <td>
+                          <span className={`tag tag-${l.status === 'approved' ? 'success' : l.status === 'rejected' ? 'danger' : 'warning'}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <span className="card-title">Company Announcements</span>
+          <Link href="/announcements" style={{ fontSize: 12, color: 'var(--primary)' }}>View all</Link>
+        </div>
+        <div className="card-body">
+          {(d.announcements || []).length === 0 ? (
+            <p style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>No recent announcements.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {d.announcements.map(a => (
+                <div key={a._id} style={{ borderLeft: '3px solid var(--primary)', padding: '4px 12px', background: 'var(--bg-card)', borderRadius: '0 8px 8px 0' }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{a.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(a.createdAt).toLocaleDateString('en-IN')}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +216,9 @@ export default function DashboardPage() {
   }
 
   const d = data || {};
+  if (d.role === 'employee') {
+    return <EmployeeDashboard d={d} />;
+  }
   const revenueData = MONTHS.map((month, i) => ({
     month,
     revenue: d.charts?.monthlyRevenue?.find(r => r.month === i + 1)?.amount || 0,

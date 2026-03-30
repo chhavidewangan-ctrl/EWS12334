@@ -25,6 +25,31 @@ export default function AttendancePage() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const LocationDisplay = ({ loc, label, device }) => {
+    const [name, setName] = useState(loc?.address || '');
+    
+    useEffect(() => {
+      if (!name && loc?.latitude && loc?.longitude) {
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${loc.latitude}&lon=${loc.longitude}`)
+          .then(res => res.json())
+          .then(data => {
+            const addr = data.display_name.split(',')[0] + ', ' + (data.address.city || data.address.town || 'Unknown');
+            setName(addr);
+          })
+          .catch(() => setName(`${loc.latitude.toFixed(3)}, ${loc.longitude.toFixed(3)}`));
+      } else if (!loc?.latitude) {
+        setName('No Loc');
+      }
+    }, [loc, name]);
+
+    return (
+      <div title={device || 'No device info'} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span>📍 {label}:</span>
+        <span style={{ color: name === 'No Loc' ? 'var(--text-muted)' : 'inherit' }}>{name || 'Loading...'}</span>
+      </div>
+    );
+  };
+
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
     try {
@@ -47,18 +72,34 @@ export default function AttendancePage() {
   const handleCheckIn = async () => {
     setCheckingIn(true);
     try {
-      let location = {};
+      let location = null;
       try {
         const pos = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          navigator.geolocation.getCurrentPosition(resolve, reject, { 
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          });
         });
-        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      } catch (e) { console.warn('Geolocation failed', e); }
+        
+        let address = 'Unknown Location';
+        try {
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+          const geoData = await geoRes.json();
+          address = geoData.display_name.split(',')[0] + ', ' + (geoData.address.city || geoData.address.town || geoData.address.suburb || '');
+        } catch (e) { console.warn('Reverse geocoding failed', e); }
 
-      const deviceInfo = `${window.navigator.platform} - ${window.navigator.userAgent.split(')')[0].split('(')[1] || 'Unknown Device'}`;
+        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, address };
+      } catch (e) { 
+        console.warn('Geolocation failed', e);
+        alert('Location access is required for attendance.');
+      }
+
+      const deviceInfo = `${window.navigator.platform} | ${window.navigator.vendor || 'Unknown Browser'}`;
       const res = await attendanceAPI.checkIn({ location, deviceInfo });
       setMyToday(res.data.attendance);
       showToast('Checked in successfully!');
+      fetchAttendance();
     } catch (err) { showToast(err.response?.data?.message || 'Check-in failed', 'danger'); }
     finally { setCheckingIn(false); }
   };
@@ -66,18 +107,34 @@ export default function AttendancePage() {
   const handleCheckOut = async () => {
     setCheckingOut(true);
     try {
-      let location = {};
+      let location = null;
       try {
         const pos = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          navigator.geolocation.getCurrentPosition(resolve, reject, { 
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          });
         });
-        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      } catch (e) { console.warn('Geolocation failed', e); }
+        
+        let address = 'Unknown Location';
+        try {
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+          const geoData = await geoRes.json();
+          address = geoData.display_name.split(',')[0] + ', ' + (geoData.address.city || geoData.address.town || geoData.address.suburb || '');
+        } catch (e) { console.warn('Reverse geocoding failed', e); }
 
-      const deviceInfo = `${window.navigator.platform} - ${window.navigator.userAgent.split(')')[0].split('(')[1] || 'Unknown Device'}`;
+        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, address };
+      } catch (e) { 
+        console.warn('Geolocation failed', e);
+        alert('Location access is required for attendance.');
+      }
+
+      const deviceInfo = `${window.navigator.platform} | ${window.navigator.vendor || 'Unknown Browser'}`;
       const res = await attendanceAPI.checkOut({ location, deviceInfo });
       setMyToday(res.data.attendance);
       showToast('Checked out successfully!');
+      fetchAttendance();
     } catch (err) { showToast(err.response?.data?.message || 'Check-out failed', 'danger'); }
     finally { setCheckingOut(false); }
   };
@@ -200,13 +257,9 @@ export default function AttendancePage() {
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{formatTime(a.checkIn)}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{formatTime(a.checkOut)}</td>
                   <td>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.2 }}>
-                      {a.checkInLocation?.latitude ? (
-                        <div title={a.checkInDevice}>📍 In: {a.checkInLocation.latitude.toFixed(3)}, {a.checkInLocation.longitude.toFixed(3)}</div>
-                      ) : <div title={a.checkInDevice}>📍 In: No Loc</div>}
-                      {a.checkOutLocation?.latitude ? (
-                        <div title={a.checkOutDevice} style={{ marginTop: 2 }}>📍 Out: {a.checkOutLocation.latitude.toFixed(3)}, {a.checkOutLocation.longitude.toFixed(3)}</div>
-                      ) : <div title={a.checkOutDevice}>📍 Out: No Loc</div>}
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      <LocationDisplay loc={a.checkInLocation} label="In" device={a.checkInDevice} />
+                      <LocationDisplay loc={a.checkOutLocation} label="Out" device={a.checkOutDevice} />
                     </div>
                   </td>
                   <td>{a.workingHours?.toFixed(1) || '-'}h</td>
