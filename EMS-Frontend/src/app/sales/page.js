@@ -13,7 +13,7 @@ export default function SalesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ client: '', date: new Date().toISOString().split('T')[0], items: [{ item: '', name: '', quantity: 1, price: 0 }], paymentMode: 'bank_transfer', paymentStatus: 'pending', notes: '' });
+  const [form, setForm] = useState({ client: '', date: new Date().toISOString().split('T')[0], items: [{ product: '', name: '', quantity: 1, rate: 0 }], paymentMode: 'bank_transfer', paymentStatus: 'pending', notes: '' });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ total: 0, paid: 0, pending: 0, totalAmount: 0 });
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
@@ -51,30 +51,34 @@ export default function SalesPage() {
     erpAPI.getInventory({ limit: 100 }).then(r => setInventory(r.data.items || [])).catch(() => {});
   }, []);
 
-  const addItem = () => setForm(f => ({ ...f, items: [...f.items, { item: '', name: '', quantity: 1, price: 0 }] }));
+  const addItem = () => setForm(f => ({ ...f, items: [...f.items, { product: '', name: '', quantity: 1, rate: 0 }] }));
   const removeItem = (i) => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }));
   const updateItem = (i, field, value) => {
     setForm(f => {
       const items = [...f.items];
       items[i] = { ...items[i], [field]: value };
-      if (field === 'item') {
+      if (field === 'product') {
         const inv = inventory.find(it => it._id === value);
-        if (inv) { items[i].name = inv.name; items[i].price = inv.sellingPrice; }
+        if (inv) { items[i].name = inv.name; items[i].rate = inv.sellingPrice; }
       }
       return { ...f, items };
     });
   };
 
-  const subtotal = form.items.reduce((s, i) => s + (Number(i.quantity) * Number(i.price)), 0);
+  const subtotal = form.items.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate)), 0);
   const fmt = (n) => `₹${(n || 0).toLocaleString('en-IN')}`;
 
   const handleCreate = async (e) => {
     e.preventDefault();
     setSaving(true);
+    const processedItems = form.items.map(it => ({
+      ...it,
+      amount: Number(it.quantity) * Number(it.rate)
+    }));
     try {
-      await erpAPI.createSale({ ...form, subtotal, total: subtotal });
+      await erpAPI.createSale({ ...form, items: processedItems, subtotal, total: subtotal });
       setShowModal(false);
-      setForm({ client: '', date: new Date().toISOString().split('T')[0], items: [{ item: '', name: '', quantity: 1, price: 0 }], paymentMode: 'bank_transfer', paymentStatus: 'pending', notes: '' });
+      setForm({ client: '', date: new Date().toISOString().split('T')[0], items: [{ product: '', name: '', quantity: 1, rate: 0 }], paymentMode: 'bank_transfer', paymentStatus: 'pending', notes: '' });
       fetchSales();
       showToast('Sale recorded successfully!');
     } catch (err) { showToast(err.response?.data?.message || 'Failed to create sale', 'danger'); }
@@ -226,15 +230,15 @@ export default function SalesPage() {
                         {form.items.map((item, i) => (
                           <tr key={i}>
                             <td>
-                              <select className="form-control" value={item.item} onChange={e => updateItem(i, 'item', e.target.value)} style={{ marginBottom: 4 }}>
+                              <select className="form-control" value={item.product} onChange={e => updateItem(i, 'product', e.target.value)} style={{ marginBottom: 4 }}>
                                 <option value="">Select from inventory</option>
                                 {inventory.map(inv => <option key={inv._id} value={inv._id}>{inv.name} (Stock: {inv.quantity})</option>)}
                               </select>
-                              <input className="form-control" placeholder="Or type description" value={item.name} onChange={updateItem} style={{ fontSize: 12 }} />
+                              <input className="form-control" placeholder="Or type description" value={item.name} onChange={e => updateItem(i, 'name', e.target.value)} style={{ fontSize: 12 }} />
                             </td>
                             <td><input type="number" className="form-control" min="1" value={item.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} /></td>
-                            <td><input type="number" className="form-control" min="0" value={item.price} onChange={e => updateItem(i, 'price', e.target.value)} /></td>
-                            <td style={{ fontWeight: 600 }}>{fmt(Number(item.quantity) * Number(item.price))}</td>
+                            <td><input type="number" className="form-control" min="0" value={item.rate} onChange={e => updateItem(i, 'rate', e.target.value)} /></td>
+                            <td style={{ fontWeight: 600 }}>{fmt(Number(item.quantity) * Number(item.rate))}</td>
                             <td>
                               {form.items.length > 1 && (
                                 <button type="button" onClick={() => removeItem(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>

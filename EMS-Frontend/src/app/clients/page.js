@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { erpAPI } from '../../services/api';
 
 const TABS = ['clients', 'vendors', 'invoices', 'expenses', 'inventory', 'sales'];
+const CATEGORIES = ['Electronics', 'Office Supplies', 'Furniture', 'Software', 'Hardware', 'Consumables', 'Equipment', 'Other'];
+const UNITS = ['pcs', 'kg', 'litre', 'box', 'set', 'unit', 'meter', 'pack'];
 
 export default function ERPPage() {
   const [tab, setTab] = useState('clients');
@@ -13,6 +15,7 @@ export default function ERPPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [vendors, setVendors] = useState([]); // For inventory supplier dropdown
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [confirm, setConfirm] = useState({ show: false, msg: '', onConfirm: null, id: null });
 
@@ -42,16 +45,30 @@ export default function ERPPage() {
     } catch { } finally { setLoading(false); }
   }, [tab, page]);
 
-  useEffect(() => { fetchData(); setForm({}); }, [fetchData]);
+  const fetchAllVendors = async () => {
+    try {
+      const res = await erpAPI.getVendors({ limit: 'all' });
+      setVendors(res.data.vendors || []);
+    } catch { }
+  };
+
+  useEffect(() => { fetchData(); setForm({}); if (tab === 'inventory') fetchAllVendors(); }, [fetchData, tab]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     setSaving(true);
+    let submitData = { ...form };
+    if (tab === 'inventory') {
+      submitData.quantity = Number(submitData.quantity) || 0;
+      submitData.reorderLevel = Number(submitData.reorderLevel) || 0;
+      submitData.purchasePrice = Number(submitData.purchasePrice) || 0;
+      submitData.sellingPrice = Number(submitData.sellingPrice) || 0;
+    }
     try {
-      if (tab === 'clients') await erpAPI.createClient(form);
-      else if (tab === 'vendors') await erpAPI.createVendor(form);
-      else if (tab === 'expenses') await erpAPI.createExpense(form);
-      else if (tab === 'inventory') await erpAPI.createInventoryItem(form);
+      if (tab === 'clients') await erpAPI.createClient(submitData);
+      else if (tab === 'vendors') await erpAPI.createVendor(submitData);
+      else if (tab === 'expenses') await erpAPI.createExpense(submitData);
+      else if (tab === 'inventory') await erpAPI.createInventoryItem(submitData);
       setShowModal(false);
       fetchData();
       showToast(`${tab.slice(0, -1)} created!`);
@@ -104,21 +121,26 @@ export default function ERPPage() {
       inventory: [
         { key: 'name', label: 'Item Name', required: true },
         { key: 'sku', label: 'SKU', required: true },
-        { key: 'category', label: 'Category' },
-        { key: 'unit', label: 'Unit', placeholder: 'pcs' },
+        { key: 'category', label: 'Category', select: CATEGORIES },
+        { key: 'unit', label: 'Unit', select: UNITS },
         { key: 'quantity', label: 'Quantity', type: 'number' },
         { key: 'reorderLevel', label: 'Reorder Level', type: 'number' },
         { key: 'purchasePrice', label: 'Purchase Price (₹)', type: 'number' },
         { key: 'sellingPrice', label: 'Selling Price (₹)', type: 'number' },
+        { key: 'supplier', label: 'Supplier', select: vendors.map(v => ({ label: v.name, value: v._id })) },
       ],
     };
     return (inputs[tab] || []).map(f => (
       <div className="form-group" key={f.key}>
         <label className="form-label">{f.label}{f.required ? ' *' : ''}</label>
         {f.select ? (
-          <select className="form-control" required={f.required} value={form[f.key] || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })}>
+          <select className="form-control" required={f.required} value={form[f.key] || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} style={{ cursor: 'pointer' }}>
             <option value="">Select...</option>
-            {f.select.map(o => <option key={o} value={o}>{o}</option>)}
+            {f.select.map(o => (
+              <option key={typeof o === 'string' ? o : o.value} value={typeof o === 'string' ? o : o.value}>
+                {typeof o === 'string' ? o : o.label}
+              </option>
+            ))}
           </select>
         ) : (
           <input className="form-control" type={f.type || 'text'} required={f.required} placeholder={f.placeholder || ''} value={form[f.key] || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
@@ -205,9 +227,9 @@ export default function ERPPage() {
           <p>Manage business operations</p>
         </div>
         {canCreate && (
-          <button className="btn btn-primary" onClick={() => { setForm({}); setShowModal(true); }}>
+          <button className="btn btn-primary" onClick={() => { setForm({}); if (tab === 'inventory') fetchAllVendors(); setShowModal(true); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-            Add {tab.slice(0, -1)}
+            Add {tab === 'inventory' ? 'Inventory' : tab.slice(0, -1)}
           </button>
         )}
       </div>
@@ -257,7 +279,7 @@ export default function ERPPage() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal modal-md" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="modal-header">
-              <h2>Add {tab.slice(0, -1)}</h2>
+              <h2>Add {tab === 'inventory' ? 'Inventory Item' : tab.slice(0, -1)}</h2>
               <button className="icon-btn" onClick={() => setShowModal(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
               </button>

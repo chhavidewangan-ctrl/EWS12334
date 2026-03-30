@@ -44,6 +44,13 @@ exports.getVendors = async (req, res) => {
     const query = {};
     if (req.companyId) query.company = req.companyId;
     if (req.query.search) query.name = { $regex: req.query.search, $options: 'i' };
+
+    // If limit is 'all', return all vendors without pagination
+    if (req.query.limit === 'all') {
+      const vendors = await Vendor.find(query).sort({ name: 1 });
+      return res.status(200).json({ success: true, count: vendors.length, vendors });
+    }
+
     const total = await Vendor.countDocuments(query);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -153,16 +160,16 @@ exports.createExpense = async (req, res) => {
     const expenseData = { ...req.body };
     if (typeof expenseData.receipt !== 'string') delete expenseData.receipt;
     if (req.file) expenseData.receipt = `/uploads/${req.file.filename}`;
-    
-    const expense = await Expense.create({ 
-      ...expenseData, 
-      company: req.companyId || req.body.company, 
-      createdBy: req.user.id 
+
+    const expense = await Expense.create({
+      ...expenseData,
+      company: req.companyId || req.body.company,
+      createdBy: req.user.id
     });
     res.status(201).json({ success: true, expense });
-  } catch (error) { 
+  } catch (error) {
     console.error("CREATE EXPENSE ERROR:", error);
-    res.status(500).json({ success: false, message: error.message }); 
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -185,15 +192,15 @@ exports.updateExpense = async (req, res) => {
     const expenseData = { ...req.body };
     if (typeof expenseData.receipt !== 'string') delete expenseData.receipt;
     if (req.file) expenseData.receipt = `/uploads/${req.file.filename}`;
-    
+
     // Only admins can change status
     if (!isAdmin) delete expenseData.status;
 
     expense = await Expense.findByIdAndUpdate(req.params.id, expenseData, { new: true });
     res.status(200).json({ success: true, expense });
-  } catch (error) { 
+  } catch (error) {
     console.error("UPDATE EXPENSE ERROR:", error);
-    res.status(500).json({ success: false, message: error.message }); 
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -215,9 +222,9 @@ exports.deleteExpense = async (req, res) => {
 
     await expense.deleteOne();
     res.status(200).json({ success: true, message: 'Expense deleted' });
-  } catch (error) { 
+  } catch (error) {
     console.error("DELETE EXPENSE ERROR:", error);
-    res.status(500).json({ success: false, message: error.message }); 
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -241,21 +248,21 @@ exports.createInventoryItem = async (req, res) => {
   try {
     const mongoose = require('mongoose');
     const itemData = { ...req.body };
-    
-    // If supplier is not a valid ObjectId (e.g., a name like "rajesh"), remove it or handle it
-    if (itemData.supplier && !mongoose.Types.ObjectId.isValid(itemData.supplier)) {
+
+    // Remove supplier if it's an empty string or an invalid ObjectId to prevent BSONError
+    if (!itemData.supplier || !mongoose.Types.ObjectId.isValid(itemData.supplier)) {
       delete itemData.supplier;
     }
 
-    const item = await Inventory.create({ 
-      ...itemData, 
-      company: req.companyId || req.user.company || req.body.company, 
-      createdBy: req.user.id 
+    const item = await Inventory.create({
+      ...itemData,
+      company: req.companyId || req.user.company || req.body.company,
+      createdBy: req.user.id
     });
     res.status(201).json({ success: true, item });
-  } catch (error) { 
+  } catch (error) {
     console.error("CREATE INVENTORY ERROR:", error);
-    res.status(500).json({ success: false, message: error.message || 'Server error' }); 
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
 };
 
@@ -297,18 +304,45 @@ exports.getSales = async (req, res) => {
 
 exports.createSale = async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    const saleData = { ...req.body };
+    
+    // Clean client ID
+    if (!saleData.client || !mongoose.Types.ObjectId.isValid(saleData.client)) {
+      delete saleData.client;
+    }
+
     const count = await Sales.countDocuments({ company: req.companyId || req.body.company });
     const salesNumber = `SL-${String(count + 1).padStart(5, '0')}`;
-    const sale = await Sales.create({ ...req.body, salesNumber, company: req.companyId || req.body.company, createdBy: req.user.id });
+    const sale = await Sales.create({ 
+      ...saleData, 
+      salesNumber, 
+      company: req.companyId || req.body.company, 
+      createdBy: req.user.id 
+    });
 
     // Update inventory
     for (const item of req.body.items) {
-      if (item.product) {
-        await Inventory.findByIdAndUpdate(item.product, { $inc: { quantity: -item.quantity } });
+      if (item.product && mongoose.Types.ObjectId.isValid(item.product)) {
+        const invItem = await Inventory.findById(item.product);
+        if (invItem) {
+          const newQty = (invItem.quantity || 0) - (Number(item.quantity) || 0);
+          let newStatus = 'in_stock';
+          if (newQty <= 0) newStatus = 'out_of_stock';
+          else if (newQty <= (invItem.reorderLevel || 10)) newStatus = 'low_stock';
+          
+          await Inventory.findByIdAndUpdate(item.product, { 
+            quantity: newQty, 
+            status: newStatus 
+          });
+        }
       }
     }
     res.status(201).json({ success: true, sale });
-  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+  } catch (error) { 
+    console.error("CREATE SALE ERROR:", error);
+    res.status(500).json({ success: false, message: error.message || 'Server error' }); 
+  }
 };
 
 exports.updateSale = async (req, res) => {

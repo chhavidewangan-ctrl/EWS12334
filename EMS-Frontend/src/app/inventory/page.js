@@ -14,7 +14,7 @@ export default function InventoryPage() {
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ name: '', sku: '', category: '', unit: 'pcs', quantity: 0, reorderLevel: 10, purchasePrice: 0, sellingPrice: 0, description: '', supplier: '' });
+  const [form, setForm] = useState({ name: '', sku: '', category: '', unit: 'pcs', quantity: '', reorderLevel: '10', purchasePrice: '', sellingPrice: '', description: '', supplier: '' });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ total: 0, inStock: 0, lowStock: 0, outOfStock: 0, totalValue: 0 });
   const [vendors, setVendors] = useState([]);
@@ -50,30 +50,53 @@ export default function InventoryPage() {
     finally { setLoading(false); }
   }, [page, search, category, stockFilter]);
 
+  const fetchVendors = async () => {
+    try {
+      const res = await erpAPI.getVendors({ limit: 'all' });
+      setVendors(res.data.vendors || []);
+    } catch (e) {
+      console.error("Ven fetch err:", e);
+    }
+  };
+
   useEffect(() => { fetchItems(); }, [fetchItems]);
-  useEffect(() => { erpAPI.getVendors().then(r => setVendors(r.data.vendors || [])).catch(() => {}); }, []);
+  useEffect(() => { fetchVendors(); }, []);
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ name: '', sku: '', category: '', unit: 'pcs', quantity: 0, reorderLevel: 10, purchasePrice: 0, sellingPrice: 0, description: '', supplier: '' });
+    setForm({ name: '', sku: '', category: '', unit: 'pcs', quantity: '', reorderLevel: '10', purchasePrice: '', sellingPrice: '', description: '', supplier: '' });
+    fetchVendors(); // Refresh vendors list to make it active
     setShowModal(true);
   };
 
   const openEdit = (item) => {
     setEditItem(item);
-    setForm({ name: item.name, sku: item.sku, category: item.category || '', unit: item.unit || 'pcs', quantity: item.quantity, reorderLevel: item.reorderLevel, purchasePrice: item.purchasePrice, sellingPrice: item.sellingPrice, description: item.description || '', supplier: item.supplier || '' });
+    setForm({
+      name: item.name, sku: item.sku, category: item.category || '', unit: item.unit || 'pcs',
+      quantity: item.quantity, reorderLevel: item.reorderLevel,
+      purchasePrice: item.purchasePrice, sellingPrice: item.sellingPrice,
+      description: item.description || '', supplier: item.supplier || ''
+    });
+    fetchVendors(); // Refresh vendors list to make it active
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
+    const submitData = {
+      ...form,
+      quantity: Number(form.quantity) || 0,
+      reorderLevel: Number(form.reorderLevel) || 0,
+      purchasePrice: Number(form.purchasePrice) || 0,
+      sellingPrice: Number(form.sellingPrice) || 0,
+    };
     try {
       if (editItem) {
-        await erpAPI.updateInventoryItem(editItem._id, form);
+        await erpAPI.updateInventoryItem(editItem._id, submitData);
         showToast('Item updated!');
       } else {
-        await erpAPI.createInventoryItem(form);
+        await erpAPI.createInventoryItem(submitData);
         showToast('Item added!');
       }
       setShowModal(false);
@@ -229,6 +252,9 @@ export default function InventoryPage() {
                   div::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
                   textarea::-webkit-scrollbar { display: none; }
                   textarea { scrollbar-width: none; ms-overflow-style: none; resize: none; }
+                  select { cursor: pointer; }
+                  select:hover { border-color: var(--primary-light); }
+                  select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
                   input::-webkit-outer-spin-button,
                   input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
                   input[type=number] { -moz-appearance: textfield; }
@@ -257,19 +283,19 @@ export default function InventoryPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Quantity</label>
-                    <input type="number" className="form-control" min="0" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} />
+                    <input type="number" className="form-control" min="0" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Reorder Level</label>
-                    <input type="number" className="form-control" min="0" value={form.reorderLevel} onChange={e => setForm({ ...form, reorderLevel: Number(e.target.value) })} />
+                    <input type="number" className="form-control" min="0" value={form.reorderLevel} onChange={e => setForm({ ...form, reorderLevel: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Purchase Price (₹)</label>
-                    <input type="number" className="form-control" min="0" value={form.purchasePrice} onChange={e => setForm({ ...form, purchasePrice: Number(e.target.value) })} />
+                    <input type="number" className="form-control" min="0" value={form.purchasePrice} onChange={e => setForm({ ...form, purchasePrice: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Selling Price (₹)</label>
-                    <input type="number" className="form-control" min="0" value={form.sellingPrice} onChange={e => setForm({ ...form, sellingPrice: Number(e.target.value) })} />
+                    <input type="number" className="form-control" min="0" value={form.sellingPrice} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Supplier</label>
@@ -317,7 +343,7 @@ export default function InventoryPage() {
         <div className="modal-overlay" style={{ zIndex: 10001 }}>
           <div className="modal" style={{ maxWidth: 400, textAlign: 'center', padding: 24 }}>
             <div style={{ color: 'var(--danger)', marginBottom: 16 }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             </div>
             <h3 style={{ marginBottom: 8, fontSize: 18 }}>Are you sure?</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>{confirm.msg}</p>
