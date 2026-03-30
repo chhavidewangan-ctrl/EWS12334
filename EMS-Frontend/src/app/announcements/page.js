@@ -8,7 +8,8 @@ export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ title:'', content:'', type:'general', targetAudience:'all' });
+  const [form, setForm] = useState({ title:'', content:'', type:'general', targetAudience: [] });
+  const ROLES = ['all', 'admin', 'employees', 'managers', 'hr'];
   const [saving, setSaving] = useState(false);
 
   const canManage = isAdmin() || isManager() || isHR();
@@ -39,7 +40,7 @@ export default function AnnouncementsPage() {
       const res = await systemAPI.createAnnouncement(form);
       setAnnouncements(prev => [res.data.announcement, ...prev]);
       setShowModal(false);
-      setForm({ title:'', content:'', type:'general', targetAudience:'all' });
+      setForm({ title:'', content:'', type:'general', targetAudience: [] });
       showToast('Announcement published!');
     } catch(err) {
       const msg = err.response?.data?.details || err.response?.data?.message || 'Failed to publish announcement';
@@ -90,7 +91,9 @@ export default function AnnouncementsPage() {
                 <div style={{ flex:1 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                     <span className={`tag tag-${typeColor[a.type]||'secondary'}`}>{a.type}</span>
-                    <span className="tag tag-secondary" style={{ textTransform:'capitalize' }}>{a.targetAudience}</span>
+                    <span className="tag tag-secondary" style={{ display: 'flex', gap: 4 }}>
+                      {Array.isArray(a.targetRoles) ? a.targetRoles.join(', ') : a.targetAudience || 'all'}
+                    </span>
                     {a.isActive && <span className="tag tag-success">Active</span>}
                   </div>
                   <h3 style={{ fontSize:16, fontWeight:600 }}>{a.title}</h3>
@@ -150,14 +153,30 @@ export default function AnnouncementsPage() {
                       <option value="urgent">Urgent</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Target Audience</label>
-                    <select className="form-control" value={form.targetAudience} onChange={e=>setForm({...form,targetAudience:e.target.value})}>
-                      <option value="all">All</option>
-                      <option value="employees">Employees</option>
-                      <option value="managers">Managers</option>
-                      <option value="hr">HR</option>
-                    </select>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label">Target Audience (Select Multiple)</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                      {ROLES.map(role => (
+                        <button
+                          key={role}
+                          type="button"
+                          className={`tag ${form.targetAudience?.includes(role) ? 'tag-primary' : 'tag-secondary'}`}
+                          style={{ cursor: 'pointer', padding: '6px 12px', border: 'none', transition: 'all 0.2s' }}
+                          onClick={() => {
+                            const current = form.targetAudience || [];
+                            if (role === 'all') {
+                              setForm({ ...form, targetAudience: ['all'] });
+                            } else {
+                              const news = current.includes('all') ? [role] :
+                                           current.includes(role) ? current.filter(r => r !== role) : [...current, role];
+                              setForm({ ...form, targetAudience: news.length ? news : ['all'] });
+                            }
+                          }}
+                        >
+                          {role.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Publish Date</label>

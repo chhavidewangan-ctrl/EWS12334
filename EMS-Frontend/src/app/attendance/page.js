@@ -47,7 +47,16 @@ export default function AttendancePage() {
   const handleCheckIn = async () => {
     setCheckingIn(true);
     try {
-      const res = await attendanceAPI.checkIn({});
+      let location = {};
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      } catch (e) { console.warn('Geolocation failed', e); }
+
+      const deviceInfo = `${window.navigator.platform} - ${window.navigator.userAgent.split(')')[0].split('(')[1] || 'Unknown Device'}`;
+      const res = await attendanceAPI.checkIn({ location, deviceInfo });
       setMyToday(res.data.attendance);
       showToast('Checked in successfully!');
     } catch (err) { showToast(err.response?.data?.message || 'Check-in failed', 'danger'); }
@@ -57,7 +66,16 @@ export default function AttendancePage() {
   const handleCheckOut = async () => {
     setCheckingOut(true);
     try {
-      const res = await attendanceAPI.checkOut({});
+      let location = {};
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      } catch (e) { console.warn('Geolocation failed', e); }
+
+      const deviceInfo = `${window.navigator.platform} - ${window.navigator.userAgent.split(')')[0].split('(')[1] || 'Unknown Device'}`;
+      const res = await attendanceAPI.checkOut({ location, deviceInfo });
       setMyToday(res.data.attendance);
       showToast('Checked out successfully!');
     } catch (err) { showToast(err.response?.data?.message || 'Check-out failed', 'danger'); }
@@ -155,9 +173,8 @@ export default function AttendancePage() {
                 <th>Date</th>
                 <th>Check In</th>
                 <th>Check Out</th>
+                <th>Details (In/Out)</th>
                 <th>Hours</th>
-                <th>Overtime</th>
-                <th>Late (min)</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -182,9 +199,17 @@ export default function AttendancePage() {
                   <td>{new Date(a.date).toLocaleDateString('en-IN')}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{formatTime(a.checkIn)}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{formatTime(a.checkOut)}</td>
+                  <td>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.2 }}>
+                      {a.checkInLocation?.latitude ? (
+                        <div title={a.checkInDevice}>📍 In: {a.checkInLocation.latitude.toFixed(3)}, {a.checkInLocation.longitude.toFixed(3)}</div>
+                      ) : <div title={a.checkInDevice}>📍 In: No Loc</div>}
+                      {a.checkOutLocation?.latitude ? (
+                        <div title={a.checkOutDevice} style={{ marginTop: 2 }}>📍 Out: {a.checkOutLocation.latitude.toFixed(3)}, {a.checkOutLocation.longitude.toFixed(3)}</div>
+                      ) : <div title={a.checkOutDevice}>📍 Out: No Loc</div>}
+                    </div>
+                  </td>
                   <td>{a.workingHours?.toFixed(1) || '-'}h</td>
-                  <td>{a.overtime > 0 ? <span style={{ color: 'var(--success)' }}>{a.overtime.toFixed(1)}h</span> : '-'}</td>
-                  <td>{a.lateMinutes > 0 ? <span style={{ color: 'var(--warning)' }}>{a.lateMinutes}m</span> : '-'}</td>
                   <td><span className={`tag tag-${statusColor(a.status)}`}>{a.status?.replace('_', ' ')}</span></td>
                 </tr>
               ))}

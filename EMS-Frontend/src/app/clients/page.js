@@ -5,6 +5,7 @@ import { erpAPI } from '../../services/api';
 const TABS = ['clients', 'vendors', 'invoices', 'expenses', 'inventory', 'sales'];
 const CATEGORIES = ['Electronics', 'Office Supplies', 'Furniture', 'Software', 'Hardware', 'Consumables', 'Equipment', 'Other'];
 const UNITS = ['pcs', 'kg', 'litre', 'box', 'set', 'unit', 'meter', 'pack'];
+const IMG_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export default function ERPPage() {
   const [tab, setTab] = useState('clients');
@@ -64,6 +65,18 @@ export default function ERPPage() {
       submitData.purchasePrice = Number(submitData.purchasePrice) || 0;
       submitData.sellingPrice = Number(submitData.sellingPrice) || 0;
     }
+
+    // Use FormData for Clients/Vendors to support Logo Upload
+    if (tab === 'clients' || tab === 'vendors') {
+      const formData = new FormData();
+      Object.keys(submitData).forEach(key => {
+        if (submitData[key] !== undefined && submitData[key] !== null) {
+          formData.append(key, submitData[key]);
+        }
+      });
+      submitData = formData;
+    }
+
     try {
       if (tab === 'clients') await erpAPI.createClient(submitData);
       else if (tab === 'vendors') await erpAPI.createVendor(submitData);
@@ -97,17 +110,21 @@ export default function ERPPage() {
     const inputs = {
       clients: [
         { key: 'name', label: 'Company Name', required: true },
+        { key: 'logo', label: 'Logo Image', type: 'file' },
         { key: 'email', label: 'Email', type: 'email' },
         { key: 'phone', label: 'Phone' },
         { key: 'contactPerson', label: 'Contact Person' },
+        { key: 'address', label: 'Full Address', type: 'textarea' },
         { key: 'gstNumber', label: 'GST Number' },
         { key: 'industry', label: 'Industry' },
       ],
       vendors: [
         { key: 'name', label: 'Vendor Name', required: true },
+        { key: 'logo', label: 'Logo Image', type: 'file' },
         { key: 'email', label: 'Email', type: 'email' },
         { key: 'phone', label: 'Phone' },
         { key: 'contactPerson', label: 'Contact Person' },
+        { key: 'address', label: 'Full Address', type: 'textarea' },
         { key: 'category', label: 'Category' },
         { key: 'gstNumber', label: 'GST Number' },
       ],
@@ -142,6 +159,10 @@ export default function ERPPage() {
               </option>
             ))}
           </select>
+        ) : f.type === 'textarea' ? (
+          <textarea className="form-control" rows={3} required={f.required} value={form[f.key] || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
+        ) : f.type === 'file' ? (
+          <input className="form-control" type="file" required={!form._id && f.required} onChange={e => setForm({ ...form, [f.key]: e.target.files[0] })} />
         ) : (
           <input className="form-control" type={f.type || 'text'} required={f.required} placeholder={f.placeholder || ''} value={form[f.key] || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
         )}
@@ -150,9 +171,24 @@ export default function ERPPage() {
   };
 
   const renderRow = (item) => {
+    const initials = (name) => name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '??';
     if (tab === 'clients' || tab === 'vendors') return (
       <tr key={item._id}>
-        <td><div style={{ fontWeight: 500 }}>{item.name}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.email}</div></td>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+              {item.logo ? (
+                <img src={`${IMG_URL}${item.logo}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--primary)' }}>{initials(item.name)}</span>
+              )}
+            </div>
+            <div>
+              <div style={{ fontWeight: 500 }}>{item.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.email}</div>
+            </div>
+          </div>
+        </td>
         <td>{item.phone || '-'}</td>
         <td>{item.contactPerson || item.category || '-'}</td>
         <td>{item.gstNumber || '-'}</td>

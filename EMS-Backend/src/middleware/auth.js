@@ -49,8 +49,8 @@ exports.companyCheck = (req, res, next) => {
     return res.status(403).json({ success: false, message: 'No company assigned to this employee' });
   }
 
-  // Set companyId for scoping (only for non-superadmins)
-  if (req.user.role !== 'superadmin' && req.user.company) {
+  // Set companyId for scoping
+  if (req.user.company) {
     req.companyId = req.user.company;
   }
   

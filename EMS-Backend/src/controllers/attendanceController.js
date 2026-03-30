@@ -27,17 +27,19 @@ exports.checkIn = async (req, res) => {
     const attendance = existing
       ? await Attendance.findByIdAndUpdate(existing._id, {
           checkIn: now, status, lateMinutes,
-          checkInLocation: req.body.location || {}
+          checkInLocation: req.body.location || {},
+          checkInDevice: req.body.deviceInfo
         }, { new: true })
       : await Attendance.create({
           employee: employee._id,
           user: req.user.id,
-          company: employee.company, // Using company from employee record
+          company: employee.company,
           date: today,
           checkIn: now,
           status,
           lateMinutes,
-          checkInLocation: req.body.location || {}
+          checkInLocation: req.body.location || {},
+          checkInDevice: req.body.deviceInfo
         });
 
     res.status(200).json({ success: true, attendance });
@@ -79,6 +81,7 @@ exports.checkOut = async (req, res) => {
     attendance.workingHours = parseFloat(workingHours.toFixed(2));
     attendance.overtime = parseFloat(overtime.toFixed(2));
     attendance.checkOutLocation = req.body.location || {};
+    attendance.checkOutDevice = req.body.deviceInfo;
     await attendance.save();
 
     res.status(200).json({ success: true, attendance });

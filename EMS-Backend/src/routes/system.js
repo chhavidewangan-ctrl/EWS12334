@@ -22,6 +22,7 @@ router.route('/branches/:id').put(authorize('superadmin', 'admin'), sys.updateBr
 // Notifications
 router.get('/notifications', sys.getNotifications);
 router.put('/notifications/:id/read', sys.markAsRead);
+router.post('/direct-message', authorize('superadmin', 'admin', 'hr', 'manager'), sys.sendDirectMessage);
 
 // Announcements
 router.route('/announcements').get(sys.getAnnouncements).post(authorize('superadmin', 'admin', 'hr'), sys.createAnnouncement);

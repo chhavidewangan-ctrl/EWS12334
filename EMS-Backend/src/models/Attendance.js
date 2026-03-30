@@ -26,6 +26,8 @@ const attendanceSchema = new mongoose.Schema({
     longitude: Number,
     address: String
   },
+  checkInDevice: String,
+  checkOutDevice: String,
   biometricId: String,
   notes: String,
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

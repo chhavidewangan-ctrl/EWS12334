@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { io } from 'socket.io-client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '../../context/AuthContext';
@@ -112,13 +113,32 @@ function Sidebar({ collapsed, mobileOpen }) {
 }
 
 function Navbar({ onToggleSidebar, collapsed }) {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const { darkMode, toggleTheme } = useTheme();
   const router = useRouter();
   const [showNotif, setShowNotif] = useState(false);
   const [showUser, setShowUser] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(0);
+  const [activeNotif, setActiveNotif] = useState(null);
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (user && token) {
+      const socket = io('http://localhost:5000', {
+        auth: { token: localStorage.getItem('ems_token') }
+      });
+      socketRef.current = socket;
+
+      socket.on('notification:new', (notif) => {
+        setNotifications(prev => [notif, ...prev]);
+        setUnread(prev => prev + 1);
+        setActiveNotif(notif);
+      });
+
+      return () => { if (socketRef.current) socketRef.current.disconnect(); };
+    }
+  }, [user, token]);
 
   useEffect(() => {
     systemAPI.getNotifications().then(res => {
@@ -232,6 +252,23 @@ function Navbar({ onToggleSidebar, collapsed }) {
           )}
         </div>
       </div>
+
+      {/* Real-time Notification Popup */}
+      {activeNotif && (
+        <div className="modal-overlay" style={{ zIndex: 20000 }}>
+          <div className="modal modal-sm" style={{ padding: 24, textAlign: 'center', maxWidth: 400 }}>
+            <div style={{ width: 64, height: 64, background: 'var(--primary-soft)', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Icon path="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" size={32} />
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{activeNotif.title}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>{activeNotif.message}</p>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 24 }}>From: <strong>{activeNotif.sender}</strong></div>
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { if (activeNotif._id) handleMarkRead(activeNotif._id); setActiveNotif(null); }}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

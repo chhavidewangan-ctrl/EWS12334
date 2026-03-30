@@ -88,12 +88,52 @@ exports.markAsRead = async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
+// ---- DIRECT MESSAGES ----
+exports.sendDirectMessage = async (req, res) => {
+  try {
+    const { userId, title, message } = req.body;
+    if (!userId || !title) return res.status(400).json({ success: false, message: 'Recipient and title are required' });
+
+    const notification = await Notification.create({
+      company: req.companyId || req.user.company,
+      user: userId,
+      title,
+      message,
+      type: 'info',
+      sender: req.user.id
+    });
+
+    res.status(201).json({ success: true, notification });
+
+    // Emit real-time notification
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${userId}`).emit('notification:new', {
+        _id: notification._id,
+        title,
+        message,
+        type: 'info',
+        sender: req.user.firstName + ' ' + req.user.lastName,
+        createdAt: notification.createdAt
+      });
+    }
+  } catch (error) {
+    console.error('Send Direct Message Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // ---- ANNOUNCEMENTS ----
 exports.getAnnouncements = async (req, res) => {
   try {
-    const query = {};
+    const query = { isActive: true };
     if (req.companyId) query.company = req.companyId;
-    query.isActive = true;
+
+    // Filter by role unless superadmin
+    if (req.user.role !== 'superadmin') {
+      query.targetRoles = { $in: ['all', req.user.role] };
+    }
+
     const announcements = await Announcement.find(query)
       .populate('createdBy', 'firstName lastName')
       .sort({ createdAt: -1 });
@@ -111,6 +151,13 @@ exports.createAnnouncement = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No company context found. Please ensure your account belongs to a company.' });
     }
 
+    let targetRoles = ['all'];
+    if (Array.isArray(targetAudience) && targetAudience.length > 0) {
+      targetRoles = targetAudience;
+    } else if (typeof targetAudience === 'string') {
+      targetRoles = [targetAudience];
+    }
+
     let announcement = await Announcement.create({
       title,
       content,
@@ -119,6 +166,7 @@ exports.createAnnouncement = async (req, res) => {
       createdBy: req.user.id,
       startDate: publishDate || new Date(),
       endDate: expiryDate,
+      targetRoles,
       isActive: true
     });
 

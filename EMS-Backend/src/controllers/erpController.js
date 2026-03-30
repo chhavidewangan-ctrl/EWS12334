@@ -18,14 +18,18 @@ exports.getClients = async (req, res) => {
 
 exports.createClient = async (req, res) => {
   try {
-    const client = await Client.create({ ...req.body, company: req.companyId || req.body.company, createdBy: req.user.id });
+    const data = { ...req.body };
+    if (req.file) data.logo = `/uploads/${req.file.filename}`;
+    const client = await Client.create({ ...data, company: req.companyId || req.body.company, createdBy: req.user.id });
     res.status(201).json({ success: true, client });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
 exports.updateClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = { ...req.body };
+    if (req.file) data.logo = `/uploads/${req.file.filename}`;
+    const client = await Client.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!client) return res.status(404).json({ success: false, message: 'Client not found' });
     res.status(200).json({ success: true, client });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
@@ -61,14 +65,18 @@ exports.getVendors = async (req, res) => {
 
 exports.createVendor = async (req, res) => {
   try {
-    const vendor = await Vendor.create({ ...req.body, company: req.companyId || req.body.company, createdBy: req.user.id });
+    const data = { ...req.body };
+    if (req.file) data.logo = `/uploads/${req.file.filename}`;
+    const vendor = await Vendor.create({ ...data, company: req.companyId || req.body.company, createdBy: req.user.id });
     res.status(201).json({ success: true, vendor });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
 exports.updateVendor = async (req, res) => {
   try {
-    const vendor = await Vendor.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = { ...req.body };
+    if (req.file) data.logo = `/uploads/${req.file.filename}`;
+    const vendor = await Vendor.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
     res.status(200).json({ success: true, vendor });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
@@ -312,12 +320,17 @@ exports.createSale = async (req, res) => {
       delete saleData.client;
     }
 
-    const count = await Sales.countDocuments({ company: req.companyId || req.body.company });
+    const company = req.companyId || req.body.company || req.user.company;
+    if (!company) {
+      return res.status(400).json({ success: false, message: 'Company ID is required to record a sale.' });
+    }
+
+    const count = await Sales.countDocuments({ company });
     const salesNumber = `SL-${String(count + 1).padStart(5, '0')}`;
     const sale = await Sales.create({ 
       ...saleData, 
       salesNumber, 
-      company: req.companyId || req.body.company, 
+      company, 
       createdBy: req.user.id 
     });
 
@@ -370,9 +383,19 @@ exports.getPurchases = async (req, res) => {
 
 exports.createPurchase = async (req, res) => {
   try {
-    const count = await Purchase.countDocuments({ company: req.companyId || req.body.company });
+    const company = req.companyId || req.body.company || req.user.company;
+    if (!company) {
+      return res.status(400).json({ success: false, message: 'Company ID is required to create a purchase.' });
+    }
+
+    const count = await Purchase.countDocuments({ company });
     const purchaseNumber = `PO-${String(count + 1).padStart(5, '0')}`;
-    const purchase = await Purchase.create({ ...req.body, purchaseNumber, company: req.companyId || req.body.company, createdBy: req.user.id });
+    const purchase = await Purchase.create({ 
+      ...req.body, 
+      purchaseNumber, 
+      company, 
+      createdBy: req.user.id 
+    });
 
     if (req.body.status === 'received') {
       for (const item of req.body.items) {

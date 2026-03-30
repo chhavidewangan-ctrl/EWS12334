@@ -102,13 +102,13 @@ export const projectAPI = {
 export const erpAPI = {
   // Clients
   getClients: (params) => api.get('/erp/clients', { params }),
-  createClient: (data) => api.post('/erp/clients', data),
-  updateClient: (id, data) => api.put(`/erp/clients/${id}`, data),
+  createClient: (data) => api.post('/erp/clients', data, { headers: { 'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json' } }),
+  updateClient: (id, data) => api.put(`/erp/clients/${id}`, data, { headers: { 'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json' } }),
   deleteClient: (id) => api.delete(`/erp/clients/${id}`),
   // Vendors
   getVendors: (params) => api.get('/erp/vendors', { params }),
-  createVendor: (data) => api.post('/erp/vendors', data),
-  updateVendor: (id, data) => api.put(`/erp/vendors/${id}`, data),
+  createVendor: (data) => api.post('/erp/vendors', data, { headers: { 'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json' } }),
+  updateVendor: (id, data) => api.put(`/erp/vendors/${id}`, data, { headers: { 'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json' } }),
   deleteVendor: (id) => api.delete(`/erp/vendors/${id}`),
   // Invoices
   getInvoices: (params) => api.get('/erp/invoices', { params }),
@@ -142,6 +142,7 @@ export const systemAPI = {
   // Notifications
   getNotifications: () => api.get('/notifications'),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  sendDirectMessage: (data) => api.post('/direct-message', data),
   // Announcements
   getAnnouncements: () => api.get('/announcements'),
   createAnnouncement: (data) => api.post('/announcements', data),

@@ -1,7 +1,7 @@
 const Employee = require('../models/Employee');
 const User = require('../models/User');
 const { sendEmail, emailTemplates } = require('../utils/email');
-const { Company } = require('../models/System');
+const { Company, Notification } = require('../models/System');
 
 // @desc Get all employees
 // @route GET /api/employees
@@ -188,10 +188,28 @@ exports.updateEmployee = async (req, res) => {
       });
     }
 
+    const oldStatus = employee.status;
+
     employee = await Employee.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
     }).populate('user', 'firstName lastName email phone avatar role');
+
+    // Create notification only for the employee who is put 'on_notice'
+    if (req.body.status === 'on_notice' && oldStatus !== 'on_notice') {
+      try {
+        await Notification.create({
+          company: employee.company,
+          user: employee.user._id || employee.user,
+          title: 'Status Update: On Notice Period',
+          message: `Your employment status has been updated to 'On Notice'. Please contact HR for further details.`,
+          type: 'warning',
+          sender: req.user.id
+        });
+      } catch (notifErr) {
+        console.error('Failed to create notice notification:', notifErr);
+      }
+    }
 
     res.status(200).json({ success: true, employee });
   } catch (error) {

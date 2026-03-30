@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { employeeAPI } from '../../services/api';
+import { employeeAPI, systemAPI } from '../../services/api';
 
 const DEPT_OPTIONS = ['Engineering','HR','Finance','Marketing','Sales','Operations','Design','Management','Support','IT'];
 const STATUS_OPTIONS = ['active','inactive','on_notice','terminated','resigned'];
@@ -29,6 +29,10 @@ export default function EmployeesPage() {
   const [viewEmp, setViewEmp] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [confirm, setConfirm] = useState({ show: false, msg: '', onConfirm: null, id: null });
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [msgRecipient, setMsgRecipient] = useState(null);
+  const [msgForm, setMsgForm] = useState({ title: '', message: '' });
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   const showToast = (msg, type = 'success') => {
     setToast({ show: true, msg, type });
@@ -99,6 +103,26 @@ export default function EmployeesPage() {
         showToast('Employee deactivated');
       } catch { showToast('Deactivation failed', 'danger'); }
     });
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!msgRecipient) return;
+    setSendingMsg(true);
+    try {
+      await systemAPI.sendDirectMessage({
+        userId: msgRecipient.user?._id || msgRecipient.user,
+        title: msgForm.title,
+        message: msgForm.message
+      });
+      showToast('Message sent successfully!');
+      setShowMsgModal(false);
+      setMsgForm({ title: '', message: '' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to send message', 'danger');
+    } finally {
+      setSendingMsg(false);
+    }
   };
 
   const handleStatusChange = (id, newStatus) => {
@@ -206,6 +230,7 @@ export default function EmployeesPage() {
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => setViewEmp(emp)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: 11 }}>View</button>
+                      <button onClick={() => { setMsgRecipient(emp); setShowMsgModal(true); }} className="btn btn-info btn-sm" style={{ padding: '4px 8px', fontSize: 11 }}>✉️</button>
                       <button onClick={() => openEdit(emp)} className="btn btn-primary btn-sm" style={{ padding: '4px 8px', fontSize: 11 }}>Edit</button>
                       <button onClick={() => handleDelete(emp._id)} className="btn btn-danger btn-sm" style={{ padding: '4px 8px', fontSize: 11 }}>❌</button>
                     </div>
@@ -500,6 +525,39 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
+
+      {/* Message Modal */}
+      {showMsgModal && msgRecipient && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowMsgModal(false)}>
+          <div className="modal modal-sm" style={{ maxWidth: 450 }}>
+            <div className="modal-header">
+              <h2>Message {msgRecipient.user?.firstName}</h2>
+              <button className="icon-btn" onClick={() => setShowMsgModal(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <form onSubmit={handleSendMessage}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Subject</label>
+                  <input className="form-control" required value={msgForm.title} onChange={e => setMsgForm({ ...msgForm, title: e.target.value })} placeholder="e.g. Important Update" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Message Content</label>
+                  <textarea className="form-control" required rows={5} value={msgForm.message} onChange={e => setMsgForm({ ...msgForm, message: e.target.value })} placeholder="Write your message here..." />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowMsgModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={sendingMsg}>
+                  {sendingMsg ? 'Sending...' : 'Send Message'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

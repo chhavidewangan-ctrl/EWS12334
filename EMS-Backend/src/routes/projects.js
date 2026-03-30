@@ -6,8 +6,8 @@ const { protect, authorize, companyCheck } = require('../middleware/auth');
 router.use(protect);
 router.use(companyCheck);
 
-router.route('/').get(getProjects).post(authorize('superadmin', 'admin', 'manager'), createProject);
-router.route('/:id').get(getProject).put(authorize('superadmin', 'admin', 'manager'), updateProject).delete(authorize('superadmin', 'admin'), deleteProject);
+router.route('/').get(getProjects).post(authorize('admin', 'manager'), createProject);
+router.route('/:id').get(getProject).put(authorize('admin', 'manager'), updateProject).delete(authorize('admin'), deleteProject);
 
 // Tasks
 router.get('/tasks/all', getTasks);
