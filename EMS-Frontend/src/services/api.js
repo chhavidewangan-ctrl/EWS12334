@@ -72,7 +72,8 @@ export const leaveAPI = {
   apply: (data) => api.post('/leaves', data),
   updateStatus: (id, data) => api.put(`/leaves/${id}/status`, data),
   getBalance: (params) => api.get('/leaves/balance', { params }),
-  cancel: (id) => api.put(`/leaves/${id}/cancel`)
+  cancel: (id) => api.put(`/leaves/${id}/cancel`),
+  update: (id, data) => api.put(`/leaves/${id}`, data)
 };
 
 // ---- Payroll ----
@@ -117,8 +118,8 @@ export const erpAPI = {
   deleteInvoice: (id) => api.delete(`/erp/invoices/${id}`),
   // Expenses
   getExpenses: (params) => api.get('/erp/expenses', { params }),
-  createExpense: (data) => api.post('/erp/expenses', data),
-  updateExpense: (id, data) => api.put(`/erp/expenses/${id}`, data),
+  createExpense: (data) => api.post('/erp/expenses', data, { headers: { 'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json' } }),
+  updateExpense: (id, data) => api.put(`/erp/expenses/${id}`, data, { headers: { 'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json' } }),
   deleteExpense: (id) => api.delete(`/erp/expenses/${id}`),
   // Inventory
   getInventory: (params) => api.get('/erp/inventory', { params }),
@@ -127,6 +128,7 @@ export const erpAPI = {
   deleteInventoryItem: (id) => api.delete(`/erp/inventory/${id}`),
   // Sales
   getSales: (params) => api.get('/erp/sales', { params }),
+  getSaleById: (id) => api.get(`/erp/sales/${id}`),
   createSale: (data) => api.post('/erp/sales', data),
   deleteSale: (id) => api.delete(`/erp/sales/${id}`),
   // Purchases

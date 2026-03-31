@@ -30,7 +30,7 @@ router.route('/inventory/:id').put(authorize('superadmin', 'admin'), erp.updateI
 
 // Sales
 router.route('/sales').get(erp.getSales).post(authorize('superadmin', 'admin', 'accountant'), erp.createSale);
-router.route('/sales/:id').put(authorize('superadmin', 'admin', 'accountant'), erp.updateSale).delete(authorize('superadmin', 'admin', 'accountant'), erp.deleteSale);
+router.route('/sales/:id').get(erp.getSaleById).put(authorize('superadmin', 'admin', 'accountant'), erp.updateSale).delete(authorize('superadmin', 'admin', 'accountant'), erp.deleteSale);
 
 // Purchases
 router.route('/purchases').get(erp.getPurchases).post(authorize('superadmin', 'admin', 'accountant'), erp.createPurchase);

@@ -229,3 +229,40 @@ exports.cancelLeave = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+// @desc Update leave
+// @route PUT /api/leaves/:id
+exports.updateLeave = async (req, res) => {
+  try {
+    const { leaveType, startDate, endDate, reason, isHalfDay } = req.body;
+    let leave = await Leave.findById(req.params.id);
+
+    if (!leave) {
+      return res.status(404).json({ success: false, message: 'Leave not found' });
+    }
+
+    if (leave.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Only pending leaves can be updated' });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    if (isHalfDay) totalDays = 0.5;
+
+    // Check balance if type or days changed
+    const employee = await Employee.findOne({ user: req.user.id });
+    if (leaveType !== 'unpaid' && leaveType !== 'other') {
+      if (employee.leaveBalance[leaveType] < totalDays) {
+        return res.status(400).json({ success: false, message: 'Insufficient leave balance' });
+      }
+    }
+
+    leave = await Leave.findByIdAndUpdate(req.params.id, {
+      leaveType, startDate: start, endDate: end, totalDays, reason, isHalfDay
+    }, { new: true });
+
+    res.status(200).json({ success: true, leave });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

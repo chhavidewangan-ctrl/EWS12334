@@ -81,18 +81,27 @@ export default function LeavesPage() {
 
 
 
-  const handleApply = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      await leaveAPI.apply(form);
-      setShowModal(false);
-      setForm({ leaveType: 'casual', startDate: '', endDate: '', reason: '', isHalfDay: false });
-      fetchLeaves();
-      showToast('Leave application submitted!');
-    } catch (err) { showToast(err.response?.data?.message || 'Failed to apply leave', 'danger'); }
-    finally { setSaving(false); }
+
+
+  const [viewLeave, setViewLeave] = useState(null);
+  const [isEdit, setIsEdit] = useState(false);
+
+  const openEdit = (l) => {
+    setForm({
+      ...l,
+      startDate: new Date(l.startDate).toISOString().split('T')[0],
+      endDate: new Date(l.endDate).toISOString().split('T')[0],
+    });
+    setIsEdit(true);
+    setShowModal(true);
+  };
+
+  const canEdit = (startDate) => {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return start > today;
   };
 
   const handleStatus = (id, status) => {
@@ -101,6 +110,7 @@ export default function LeavesPage() {
         await leaveAPI.updateStatus(id, { status });
         fetchLeaves();
         showToast(`Leave ${status}`);
+        setViewLeave(null);
       } catch { showToast('Operation failed', 'danger'); }
     });
   };
@@ -111,6 +121,7 @@ export default function LeavesPage() {
         await leaveAPI.cancel(id);
         fetchLeaves();
         showToast('Leave cancelled');
+        setViewLeave(null);
       } catch { showToast('Cancel failed', 'danger'); }
     });
   };
@@ -124,7 +135,7 @@ export default function LeavesPage() {
           <h1>Leave Management</h1>
           <p>Apply and manage employee leaves</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={() => { setIsEdit(false); setForm({ leaveType: 'casual', startDate: '', endDate: '', reason: '', isHalfDay: false }); setShowModal(true); }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
           Apply Leave
         </button>
@@ -181,15 +192,32 @@ export default function LeavesPage() {
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.reason}</td>
                   <td><span className={`tag tag-${statusColor(l.status)}`}>{l.status}</span></td>
                   <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button onClick={() => setViewLeave(l)} className="btn btn-secondary btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="View Details">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+
+                      {l.status === 'pending' && canEdit(l.startDate) && (
+                        <button onClick={() => openEdit(l)} className="btn btn-primary btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Edit Leave">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                      )}
+
                       {l.status === 'pending' && isAdmin() && (
                         <>
-                          <button className="btn btn-success btn-sm" onClick={() => handleStatus(l._id, 'approved')}>✓</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleStatus(l._id, 'rejected')}>✗</button>
+                          <button className="btn btn-success btn-sm" onClick={() => handleStatus(l._id, 'approved')} style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Approve">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          </button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleStatus(l._id, 'rejected')} style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Reject">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
                         </>
                       )}
-                      {l.status === 'pending' && (
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleCancel(l._id)}>Cancel</button>
+                      
+                      {l.status === 'pending' && !isAdmin() && (
+                        <button className="btn btn-danger btn-sm" onClick={() => handleCancel(l._id)} style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cancel Request">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
                       )}
                     </div>
                   </td>
@@ -213,12 +241,29 @@ export default function LeavesPage() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal modal-md" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="modal-header">
-              <h2>Apply for Leave</h2>
+              <h2>{isEdit ? 'Edit Leave Application' : 'Apply for Leave'}</h2>
               <button className="icon-btn" onClick={() => setShowModal(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-            <form onSubmit={handleApply} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setSaving(true);
+              setError('');
+              try {
+                if (isEdit) {
+                  await leaveAPI.update(form._id, form);
+                  showToast('Leave application updated!');
+                } else {
+                  await leaveAPI.apply(form);
+                  showToast('Leave application submitted!');
+                }
+                setShowModal(false);
+                setForm({ leaveType: 'casual', startDate: '', endDate: '', reason: '', isHalfDay: false });
+                fetchLeaves();
+              } catch (err) { showToast(err.response?.data?.message || 'Operation failed', 'danger'); }
+              finally { setSaving(false); }
+            }} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
               <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: 8 }}>
                 <style jsx>{`
                   div::-webkit-scrollbar { width: 4px; }
@@ -267,10 +312,81 @@ export default function LeavesPage() {
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? <><div className="loading-spinner"></div> Applying...</> : 'Apply Leave'}
+                  {saving ? <><div className="loading-spinner"></div> Processing...</> : (isEdit ? 'Update Leave' : 'Apply Leave')}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {viewLeave && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setViewLeave(null)}>
+          <div className="modal modal-sm" style={{ maxWidth: 450 }}>
+            <div className="modal-header">
+              <h2>Leave Details</h2>
+              <button className="icon-btn" onClick={() => setViewLeave(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <div className="avatar" style={{ width: 44, height: 44 }}>
+                  {viewLeave.employee?.user?.firstName?.[0]}{viewLeave.employee?.user?.lastName?.[0]}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 16, margin: 0 }}>{viewLeave.employee?.user?.firstName} {viewLeave.employee?.user?.lastName}</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Applied on {new Date(viewLeave.createdAt).toLocaleDateString('en-IN')}</p>
+                </div>
+              </div>
+
+              <div className="form-grid" style={{ marginBottom: 20 }}>
+                <div>
+                  <label className="form-label">Type</label>
+                  <div style={{ fontSize: 14, fontWeight: 500, textTransform: 'capitalize' }}>{viewLeave.leaveType}</div>
+                </div>
+                <div>
+                  <label className="form-label">Duration</label>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{viewLeave.totalDays} Days</div>
+                </div>
+                <div>
+                  <label className="form-label">From</label>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{new Date(viewLeave.startDate).toLocaleDateString('en-IN')}</div>
+                </div>
+                <div>
+                  <label className="form-label">To</label>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{new Date(viewLeave.endDate).toLocaleDateString('en-IN')}</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label className="form-label">Status</label>
+                <div><span className={`tag tag-${statusColor(viewLeave.status)}`}>{viewLeave.status}</span></div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label className="form-label">Reason</label>
+                <div style={{ fontSize: 13, background: 'var(--bg-primary)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>{viewLeave.reason}</div>
+              </div>
+
+              {viewLeave.approvedBy && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>
+                  Processed by {viewLeave.approvedBy.firstName} {viewLeave.approvedBy.lastName}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {viewLeave.status === 'pending' && isAdmin() && (
+                <>
+                  <button className="btn btn-success" onClick={() => handleStatus(viewLeave._id, 'approved')}>Approve</button>
+                  <button className="btn btn-danger" onClick={() => handleStatus(viewLeave._id, 'rejected')}>Reject</button>
+                </>
+              )}
+              {viewLeave.status === 'pending' && !isAdmin() && (
+                <button className="btn btn-danger" onClick={() => handleCancel(viewLeave._id)}>Cancel Request</button>
+              )}
+              <button className="btn btn-secondary" onClick={() => setViewLeave(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}

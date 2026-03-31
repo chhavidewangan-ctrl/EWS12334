@@ -141,6 +141,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .btn-danger:hover { background: #dc2626; }
 .btn-success { background: var(--success); color: white; }
 .btn-success:hover { background: #059669; }
+.btn-info { background: var(--info); color: white; }
+.btn-info:hover { background: #2563eb; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-warning:hover { background: #d97706; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 .btn-lg { padding: 10px 20px; font-size: 15px; }
 .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }

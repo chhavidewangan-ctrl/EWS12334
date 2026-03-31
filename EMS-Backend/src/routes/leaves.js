@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { applyLeave, getLeaves, updateLeaveStatus, getLeaveBalance, cancelLeave } = require('../controllers/leaveController');
+const { applyLeave, getLeaves, updateLeaveStatus, getLeaveBalance, cancelLeave, updateLeave } = require('../controllers/leaveController');
 const { protect, authorize, companyCheck } = require('../middleware/auth');
 
 router.use(protect);
@@ -12,5 +12,6 @@ router.route('/')
   .post(applyLeave);
 router.put('/:id/status', authorize('superadmin', 'admin', 'hr', 'manager'), updateLeaveStatus);
 router.put('/:id/cancel', cancelLeave);
+router.put('/:id', updateLeave);
 
 module.exports = router;

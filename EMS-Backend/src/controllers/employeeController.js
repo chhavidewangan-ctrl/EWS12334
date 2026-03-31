@@ -228,13 +228,17 @@ exports.deleteEmployee = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    // Deactivate user account
-    await User.findByIdAndUpdate(employee.user, { isActive: false });
-    employee.status = 'terminated';
-    await employee.save();
+    // Delete associated user account
+    if (employee.user) {
+      await User.findByIdAndDelete(employee.user);
+    }
 
-    res.status(200).json({ success: true, message: 'Employee deactivated' });
+    // Delete the employee record
+    await Employee.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ success: true, message: 'Employee deleted successfully' });
   } catch (error) {
+    console.error('Delete employee error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

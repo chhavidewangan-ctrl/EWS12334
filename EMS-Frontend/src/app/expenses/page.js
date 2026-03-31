@@ -6,9 +6,13 @@ import { useAuth } from '../../context/AuthContext';
 const CATEGORIES = ['Travel', 'Food & Beverage', 'Office Supplies', 'Software', 'Hardware', 'Utilities', 'Marketing', 'Training', 'Maintenance', 'Miscellaneous'];
 const PAYMENT_MODES = ['cash', 'bank_transfer', 'card', 'upi', 'cheque'];
 
+const IMG_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
 export default function ExpensesPage() {
   const { isAdmin } = useAuth();
+  const [viewReceipt, setViewReceipt] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -48,7 +52,10 @@ export default function ExpensesPage() {
     finally { setLoading(false); }
   }, [page, statusFilter, categoryFilter]);
 
-  useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
+  useEffect(() => { 
+    fetchExpenses(); 
+    erpAPI.getVendors({ limit: 100 }).then(r => setVendors(r.data.vendors || [])).catch(() => {});
+  }, [fetchExpenses]);
 
   const openCreate = () => {
     setEditExp(null);
@@ -189,9 +196,17 @@ export default function ExpensesPage() {
                   <td style={{ fontWeight: 700, color: 'var(--danger)', fontSize: 14 }}>{fmt(exp.amount)}</td>
                   <td>
                     {exp.receipt ? (
-                      <a href={`http://localhost:5000${exp.receipt}`} target="_blank" rel="noreferrer" title="View Receipt">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </a>
+                      <div 
+                        onClick={() => setViewReceipt(`${IMG_URL}${exp.receipt}`)}
+                        style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden', cursor: 'pointer', background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Click to view receipt"
+                      >
+                        {exp.receipt.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                          <img src={`${IMG_URL}${exp.receipt}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        )}
+                      </div>
                     ) : '-'}
                   </td>
                   <td>{new Date(exp.date).toLocaleDateString('en-IN')}</td>
@@ -230,6 +245,26 @@ export default function ExpensesPage() {
           </div>
         </div>
       </div>
+
+      {viewReceipt && (
+        <div className="modal-overlay" onClick={() => setViewReceipt(null)}>
+          <div className="modal" style={{ maxWidth: '80vw', maxHeight: '80vh', padding: 10, background: 'none', border: 'none', boxShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setViewReceipt(null)}
+                style={{ position: 'fixed', top: 20, right: 20, width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', cursor: 'pointer', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+              {viewReceipt.match(/\.pdf$/i) ? (
+                <iframe src={viewReceipt} style={{ width: '80vw', height: '80vh', borderRadius: 12, border: '1px solid var(--border)' }}></iframe>
+              ) : (
+                <img src={viewReceipt} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', objectFit: 'contain' }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
@@ -276,7 +311,10 @@ export default function ExpensesPage() {
                   </div>
                   <div className="form-group" style={{ gridColumn: 'span 2' }}>
                     <label className="form-label">Vendor / Paid To</label>
-                    <input className="form-control" value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor name" />
+                    <select className="form-control" value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })}>
+                      <option value="">Select Vendor</option>
+                      {vendors.map(v => <option key={v._id} value={v.name}>{v.name}</option>)}
+                    </select>
                   </div>
                   {form.paymentMode !== 'cash' && (
                     <div className="form-group" style={{ gridColumn: 'span 2' }}>

@@ -85,6 +85,108 @@ export default function SalesPage() {
     finally { setSaving(false); }
   };
 
+  const handlePrint = async (id) => {
+    try {
+      const res = await erpAPI.getSaleById(id);
+      const sale = res.data.sale;
+      const printWindow = window.open('', '_blank');
+      const html = `
+        <html>
+          <head>
+            <title>Sale ${sale.salesNumber}</title>
+            <style>
+              body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+              .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
+              .company-info h1 { margin: 0; color: #6366f1; font-size: 24px; }
+              .invoice-details { text-align: right; }
+              .invoice-details h2 { margin: 0; font-size: 20px; color: #64748b; }
+              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+              .section-title { font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 8px; }
+              table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+              th { text-align: left; background: #f8fafc; padding: 12px; font-size: 13px; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+              td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+              .totals { margin-left: auto; width: 250px; }
+              .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+              .grand-total { font-weight: 700; font-size: 18px; color: #1e293b; border-top: 2px solid #f1f5f9; margin-top: 10px; padding-top: 10px; }
+              @media print { .no-print { display: none; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="company-info">
+                <h1>${sale.company?.name || 'ERP System'}</h1>
+                <p>${sale.company?.email || ''}</p>
+                <p>${sale.company?.phone || ''}</p>
+              </div>
+              <div class="invoice-details">
+                <h2>SALE RECEIPT</h2>
+                <p style="font-weight: 600; font-size: 16px; margin: 5px 0;">#${sale.salesNumber}</p>
+                <p>Date: ${new Date(sale.date).toLocaleDateString('en-IN')}</p>
+              </div>
+            </div>
+            
+            <div class="grid">
+              <div>
+                <div class="section-title">Bill To</div>
+                <div style="font-weight: 600; font-size: 15px;">${sale.client?.name || 'Walking Customer'}</div>
+                <div style="color: #64748b;">${sale.client?.phone || ''}</div>
+                <div style="color: #64748b;">${sale.client?.address || ''}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="section-title">Payment Info</div>
+                <div>Status: <strong style="color: ${sale.paymentStatus === 'paid' ? '#10b981' : '#f59e0b'}">${sale.paymentStatus.toUpperCase()}</strong></div>
+                <div>Method: ${sale.paymentMode?.replace('_', ' ').toUpperCase()}</div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th style="text-align: center; width: 60px;">Qty</th>
+                  <th style="text-align: right; width: 100px;">Rate</th>
+                  <th style="text-align: right; width: 120px;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sale.items.map(item => `
+                  <tr>
+                    <td>${item.name || item.product?.name || 'Product'}</td>
+                    <td style="text-align: center;">${item.quantity}</td>
+                    <td style="text-align: right;">₹${(item.rate || 0).toLocaleString()}</td>
+                    <td style="text-align: right; font-weight: 600;">₹${(item.amount || 0).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <div class="totals">
+              <div class="total-row"><span>Subtotal</span><span>₹${(sale.subtotal || 0).toLocaleString()}</span></div>
+              <div class="total-row"><span>Tax</span><span>₹${(sale.taxTotal || 0).toLocaleString()}</span></div>
+              <div class="total-row grand-total"><span>Total Revenue</span><span>₹${(sale.total || 0).toLocaleString()}</span></div>
+            </div>
+
+            <div style="margin-top: 80px; padding-top: 20px; border-top: 1px dashed #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+              This is a computer generated receipt and does not require a physical signature.
+            </div>
+            
+            <script>
+              window.onload = () => {
+                window.print();
+                setTimeout(() => window.close(), 500);
+              }
+            </script>
+          </body>
+        </html>
+      `;
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to generate print view', 'danger');
+    }
+  };
+
   const statusColor = { pending: 'warning', paid: 'success', partial: 'info', overdue: 'danger' };
 
   return (
@@ -128,13 +230,14 @@ export default function SalesPage() {
                 <th>Total</th>
                 <th>Payment Mode</th>
                 <th>Status</th>
+                <th style={{ width: 60 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8}><div className="loading-overlay"><div className="loading-spinner"></div></div></td></tr>
+                <tr><td colSpan={9}><div className="loading-overlay"><div className="loading-spinner"></div></div></td></tr>
               ) : sales.length === 0 ? (
-                <tr><td colSpan={8}>
+                <tr><td colSpan={9}>
                   <div className="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                     <h3>No sales yet</h3><p>Record your first sale</p>
@@ -150,6 +253,11 @@ export default function SalesPage() {
                   <td style={{ fontWeight: 700, color: 'var(--success)' }}>{fmt(s.total)}</td>
                   <td style={{ textTransform: 'capitalize', fontSize: 12 }}>{s.paymentMode?.replace('_', ' ')}</td>
                   <td><span className={`tag tag-${statusColor[s.paymentStatus] || 'secondary'}`}>{s.paymentStatus}</span></td>
+                  <td>
+                    <button onClick={() => handlePrint(s._id)} className="btn btn-secondary btn-sm" title="Print Receipt" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

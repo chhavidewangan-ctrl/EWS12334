@@ -310,11 +310,22 @@ exports.getSales = async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
+exports.getSaleById = async (req, res) => {
+  try {
+    const sale = await Sales.findById(req.params.id)
+      .populate('client')
+      .populate('company')
+      .populate('items.product');
+    if (!sale) return res.status(404).json({ success: false, message: 'Sale not found' });
+    res.status(200).json({ success: true, sale });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
 exports.createSale = async (req, res) => {
   try {
     const mongoose = require('mongoose');
     const saleData = { ...req.body };
-    
+
     // Clean client ID
     if (!saleData.client || !mongoose.Types.ObjectId.isValid(saleData.client)) {
       delete saleData.client;
@@ -327,11 +338,11 @@ exports.createSale = async (req, res) => {
 
     const count = await Sales.countDocuments({ company });
     const salesNumber = `SL-${String(count + 1).padStart(5, '0')}`;
-    const sale = await Sales.create({ 
-      ...saleData, 
-      salesNumber, 
-      company, 
-      createdBy: req.user.id 
+    const sale = await Sales.create({
+      ...saleData,
+      salesNumber,
+      company,
+      createdBy: req.user.id
     });
 
     // Update inventory
@@ -343,18 +354,18 @@ exports.createSale = async (req, res) => {
           let newStatus = 'in_stock';
           if (newQty <= 0) newStatus = 'out_of_stock';
           else if (newQty <= (invItem.reorderLevel || 10)) newStatus = 'low_stock';
-          
-          await Inventory.findByIdAndUpdate(item.product, { 
-            quantity: newQty, 
-            status: newStatus 
+
+          await Inventory.findByIdAndUpdate(item.product, {
+            quantity: newQty,
+            status: newStatus
           });
         }
       }
     }
     res.status(201).json({ success: true, sale });
-  } catch (error) { 
+  } catch (error) {
     console.error("CREATE SALE ERROR:", error);
-    res.status(500).json({ success: false, message: error.message || 'Server error' }); 
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
 };
 
@@ -390,11 +401,11 @@ exports.createPurchase = async (req, res) => {
 
     const count = await Purchase.countDocuments({ company });
     const purchaseNumber = `PO-${String(count + 1).padStart(5, '0')}`;
-    const purchase = await Purchase.create({ 
-      ...req.body, 
-      purchaseNumber, 
-      company, 
-      createdBy: req.user.id 
+    const purchase = await Purchase.create({
+      ...req.body,
+      purchaseNumber,
+      company,
+      createdBy: req.user.id
     });
 
     if (req.body.status === 'received') {
