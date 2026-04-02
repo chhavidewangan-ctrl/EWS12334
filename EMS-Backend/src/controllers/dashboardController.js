@@ -5,6 +5,7 @@ const Payroll = require('../models/Payroll');
 const { Project, Task } = require('../models/Project');
 const { Invoice, Expense, Sales } = require('../models/ERP');
 const { Announcement } = require('../models/System');
+const AuditLog = require('../models/AuditLog');
 
 // @desc Get dashboard overview
 // @route GET /api/dashboard
@@ -219,7 +220,16 @@ exports.getReport = async (req, res) => {
 
       case 'attendance':
         const attQuery = { ...query };
-        if (startDate && endDate) attQuery.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        if (month && year) {
+          const m = parseInt(month);
+          const y = parseInt(year);
+          attQuery.date = {
+            $gte: new Date(y, m - 1, 1),
+            $lte: new Date(y, m, 0, 23, 59, 59)
+          };
+        } else if (startDate && endDate) {
+          attQuery.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        }
         report = await Attendance.aggregate([
           { $match: attQuery },
           { $group: { _id: '$status', count: { $sum: 1 } } }
@@ -248,7 +258,16 @@ exports.getReport = async (req, res) => {
 
       case 'sales':
         const salesQuery = { ...query };
-        if (startDate && endDate) salesQuery.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        if (month && year) {
+          const m = parseInt(month);
+          const y = parseInt(year);
+          salesQuery.date = {
+            $gte: new Date(y, m - 1, 1),
+            $lte: new Date(y, m, 0, 23, 59, 59)
+          };
+        } else if (startDate && endDate) {
+          salesQuery.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        }
         report = await Sales.aggregate([
           { $match: salesQuery },
           {
@@ -264,7 +283,16 @@ exports.getReport = async (req, res) => {
 
       case 'expense':
         const expQuery = { ...query };
-        if (startDate && endDate) expQuery.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        if (month && year) {
+          const m = parseInt(month);
+          const y = parseInt(year);
+          expQuery.date = {
+            $gte: new Date(y, m - 1, 1),
+            $lte: new Date(y, m, 0, 23, 59, 59)
+          };
+        } else if (startDate && endDate) {
+          expQuery.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        }
         report = await Expense.aggregate([
           { $match: expQuery },
           { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
@@ -297,6 +325,23 @@ exports.getReport = async (req, res) => {
         ]);
 
         report = { revenue: salesTotal, expenses: expenseTotal, salaries: salaryTotal, year: plYear };
+        break;
+
+      case 'activity':
+        const actYear = year ? parseInt(year) : new Date().getFullYear();
+        const actStart = new Date(actYear, 0, 1);
+        const actEnd = new Date(actYear, 11, 31);
+        
+        report = await AuditLog.aggregate([
+          { $match: { ...query, createdAt: { $gte: actStart, $lte: actEnd } } },
+          {
+            $group: {
+              _id: { month: { $month: '$createdAt' }, action: '$action' },
+              count: { $sum: 1 }
+            }
+          },
+          { $sort: { '_id.month': 1 } }
+        ]);
         break;
 
       default:

@@ -59,12 +59,13 @@ export function AuthProvider({ children }) {
   const isHR = useCallback(() => hasRole('hr'), [hasRole]);
   const isManager = useCallback(() => hasRole(['superadmin', 'admin', 'manager']), [hasRole]);
   const isAccountant = useCallback(() => hasRole(['superadmin', 'admin', 'accountant']), [hasRole]);
+  const isPlatformAdmin = useCallback(() => user?.role === 'superadmin' && !user?.company, [user]);
 
   return (
     <AuthContext.Provider value={{
       user, token, loading,
       login, logout, refreshUser,
-      hasRole, isSuperAdmin, isAdmin, isHR, isManager, isAccountant,
+      hasRole, isSuperAdmin, isAdmin, isHR, isManager, isAccountant, isPlatformAdmin,
       isAuthenticated: !!user
     }}>
       {children}

@@ -1,4 +1,5 @@
 const { Project, Task } = require('../models/Project');
+const { logAction } = require('../utils/auditLogger');
 
 // ---- PROJECT CONTROLLERS ----
 
@@ -40,7 +41,10 @@ exports.getProject = async (req, res) => {
 
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
 
-    const tasks = await Task.find({ project: project._id })
+    const taskQuery = { project: project._id };
+    if (req.companyId) taskQuery.company = req.companyId;
+
+    const tasks = await Task.find(taskQuery)
       .populate({ path: 'assignedTo', populate: { path: 'user', select: 'firstName lastName avatar' } });
 
     res.status(200).json({ success: true, project, tasks });
@@ -51,13 +55,12 @@ exports.getProject = async (req, res) => {
 
 exports.createProject = async (req, res) => {
   try {
-    const companyId = req.companyId || req.body.company || "69c3b5002dbdfb6f286af947";
-
-const project = await Project.create({
-  ...req.body,
-  company: companyId, 
-  createdBy: req.user?.id || null
-});
+    const project = await Project.create({
+      ...req.body,
+      company: req.companyId, 
+      createdBy: req.user.id
+    });
+    await logAction(req, 'CREATE', 'Project', `Created new project: ${project.name}`, null, project._id);
     res.status(201).json({ success: true, project });
   } catch (error) {
   console.error("PROJECT ERROR:", error); // 🔥 ADD THIS
@@ -67,8 +70,13 @@ const project = await Project.create({
 
 exports.updateProject = async (req, res) => {
   try {
-    const project = await Project.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    const project = await Project.findOneAndUpdate(
+      { _id: req.params.id, company: req.companyId }, 
+      req.body, 
+      { new: true, runValidators: true }
+    );
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found or unauthorized' });
+    await logAction(req, 'UPDATE', 'Project', `Updated project: ${project.name}`, null, project._id);
     res.status(200).json({ success: true, project });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -77,9 +85,10 @@ exports.updateProject = async (req, res) => {
 
 exports.deleteProject = async (req, res) => {
   try {
-    const project = await Project.findByIdAndDelete(req.params.id);
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    await Task.deleteMany({ project: project._id });
+    const project = await Project.findOneAndDelete({ _id: req.params.id, company: req.companyId });
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found or unauthorized' });
+    await Task.deleteMany({ project: project._id, company: req.companyId });
+    await logAction(req, 'DELETE', 'Project', `Deleted project: ${project.name}`, null, project._id);
     res.status(200).json({ success: true, message: 'Project deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -115,13 +124,12 @@ exports.getTasks = async (req, res) => {
 
 exports.createTask = async (req, res) => {
   try {
-    const companyId = req.companyId || req.body.company || "69c3b5002dbdfb6f286af947";
-    
     const task = await Task.create({
       ...req.body,
-      company: companyId,
-      assignedBy: req.user?.id || null
+      company: req.companyId,
+      assignedBy: req.user.id
     });
+    await logAction(req, 'CREATE', 'Task', `Created task: ${task.title} for project ${task.project}`, null, task._id);
     res.status(201).json({ success: true, task });
   } catch (error) {
     console.error("TASK ERROR:", error);
@@ -132,8 +140,12 @@ exports.createTask = async (req, res) => {
 exports.updateTask = async (req, res) => {
   try {
     if (req.body.status === 'completed') req.body.completedDate = new Date();
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, company: req.companyId }, 
+      req.body, 
+      { new: true, runValidators: true }
+    );
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found or unauthorized' });
 
     // Update project progress
     const allTasks = await Task.find({ project: task.project });

@@ -1,4 +1,6 @@
 const { Company, Branch, Notification, Announcement, Ticket, Holiday, Document } = require('../models/System');
+const AuditLog = require('../models/AuditLog');
+const { logAction } = require('../utils/auditLogger');
 
 // ---- COMPANY ----
 exports.getCompanies = async (req, res) => {
@@ -55,14 +57,18 @@ exports.createBranch = async (req, res) => {
 
 exports.updateBranch = async (req, res) => {
   try {
-    const branch = await Branch.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const branch = await Branch.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
+    if (!branch) return res.status(404).json({ success: false, message: 'Branch not found or unauthorized' });
+    await logAction(req, 'UPDATE', 'Branch', `Updated branch: ${branch.name}`, null, branch._id);
     res.status(200).json({ success: true, branch });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
 exports.deleteBranch = async (req, res) => {
   try {
-    await Branch.findByIdAndDelete(req.params.id);
+    const branch = await Branch.findOneAndDelete({ _id: req.params.id, company: req.companyId });
+    if (!branch) return res.status(404).json({ success: false, message: 'Branch not found or unauthorized' });
+    await logAction(req, 'DELETE', 'Branch', `Deleted branch: ${branch.name}`, null, branch._id);
     res.status(200).json({ success: true, message: 'Branch deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -171,7 +177,7 @@ exports.createAnnouncement = async (req, res) => {
     });
 
     announcement = await announcement.populate('createdBy', 'firstName lastName');
-
+    await logAction(req, 'CREATE', 'Announcement', `Posted announcement: ${title}`, null, announcement._id);
     res.status(201).json({ success: true, announcement });
   } catch (error) {
     console.error('Create Announcement Detailed Error:', JSON.stringify(error, null, 2));
@@ -181,14 +187,18 @@ exports.createAnnouncement = async (req, res) => {
 
 exports.updateAnnouncement = async (req, res) => {
   try {
-    const announcement = await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const announcement = await Announcement.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
+    if (!announcement) return res.status(404).json({ success: false, message: 'Announcement not found or unauthorized' });
+    await logAction(req, 'UPDATE', 'Announcement', `Updated announcement: ${announcement.title}`, null, announcement._id);
     res.status(200).json({ success: true, announcement });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
 exports.deleteAnnouncement = async (req, res) => {
   try {
-    await Announcement.findByIdAndDelete(req.params.id);
+    const announcement = await Announcement.findOneAndDelete({ _id: req.params.id, company: req.companyId });
+    if (!announcement) return res.status(404).json({ success: false, message: 'Announcement not found or unauthorized' });
+    await logAction(req, 'DELETE', 'Announcement', `Deleted announcement: ${announcement.title}`, null, announcement._id);
     res.status(200).json({ success: true, message: 'Announcement deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -229,6 +239,7 @@ exports.createTicket = async (req, res) => {
       createdBy: req.user.id
     });
     ticket = await ticket.populate('createdBy', 'firstName lastName');
+    await logAction(req, 'CREATE', 'Ticket', `Created ticket: ${ticketNumber}`, null, ticket._id);
     res.status(201).json({ success: true, ticket });
   } catch (error) {
     console.error('Create Ticket Error:', error);
@@ -238,17 +249,20 @@ exports.createTicket = async (req, res) => {
 
 exports.updateTicket = async (req, res) => {
   try {
-    const ticket = await Ticket.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const ticket = await Ticket.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found or unauthorized' });
+    await logAction(req, 'UPDATE', 'Ticket', `Updated ticket status: ${ticket.title}`, null, ticket._id);
     res.status(200).json({ success: true, ticket });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
 exports.replyTicket = async (req, res) => {
   try {
-    const ticket = await Ticket.findById(req.params.id);
-    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    const ticket = await Ticket.findOne({ _id: req.params.id, company: req.companyId });
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found or unauthorized' });
     ticket.replies.push({ user: req.user.id, message: req.body.message });
     await ticket.save();
+    await logAction(req, 'UPDATE', 'Ticket', `Replied to ticket: ${ticket.title}`, null, ticket._id);
     res.status(200).json({ success: true, ticket });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -269,6 +283,7 @@ exports.createHoliday = async (req, res) => {
       ...req.body,
       company: req.companyId || req.body.company || req.user.company
     });
+    await logAction(req, 'CREATE', 'Holiday', `Created holiday: ${holiday.name}`, null, holiday._id);
     res.status(201).json({ success: true, holiday });
   } catch (error) {
     console.error('Create Holiday Error:', error);
@@ -278,7 +293,68 @@ exports.createHoliday = async (req, res) => {
 
 exports.deleteHoliday = async (req, res) => {
   try {
-    await Holiday.findByIdAndDelete(req.params.id);
+    const holiday = await Holiday.findOneAndDelete({ _id: req.params.id, company: req.companyId });
+    if (!holiday) return res.status(404).json({ success: false, message: 'Holiday not found or unauthorized' });
+    await logAction(req, 'DELETE', 'Holiday', `Deleted holiday: ${holiday.name}`, null, holiday._id);
     res.status(200).json({ success: true, message: 'Holiday deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
+// ---- AUDIT LOGS ----
+exports.getAuditLogs = async (req, res) => {
+  try {
+    const query = {};
+    const { company, user, action, resource, startDate, endDate, month, year, page = 1, limit = 20 } = req.query;
+
+    // SaaS Logic: 
+    // 1. If user is a company-level admin, ONLY show their company's logs
+    // 2. If user is a platform-level admin, show 'company' from query if provided, else show ALL logs
+    if (req.companyId) {
+      query.company = req.companyId;
+    } else if (company) {
+      query.company = company;
+    }
+
+    if (user) query.user = user;
+    if (action) query.action = action;
+    if (resource) query.resourceType = resource;
+    
+    // Date range logic
+    if (month && year) {
+      const m = parseInt(month);
+      const y = parseInt(year);
+      query.createdAt = {
+        $gte: new Date(y, m - 1, 1),
+        $lte: new Date(y, m, 0, 23, 59, 59)
+      };
+    } else if (year) {
+      const y = parseInt(year);
+      query.createdAt = {
+        $gte: new Date(y, 0, 1),
+        $lte: new Date(y, 11, 31, 23, 59, 59)
+      };
+    } else if (startDate && endDate) {
+      query.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+
+    const total = await AuditLog.countDocuments(query);
+    const logs = await AuditLog.find(query)
+      .populate('user', 'firstName lastName email role')
+      .populate('company', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    res.status(200).json({
+      success: true,
+      count: logs.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      logs
+    });
+  } catch (error) {
+    console.error('Get Audit Logs Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };

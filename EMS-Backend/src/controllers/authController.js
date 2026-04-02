@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Employee = require('../models/Employee');
 const { Company } = require('../models/System');
 const { sendEmail, emailTemplates } = require('../utils/email');
+const { logAction } = require('../utils/auditLogger');
 
 // @desc  Register a new Company + Super-Admin user (public onboarding)
 // @route POST /api/auth/register-company
@@ -85,6 +86,12 @@ exports.registerCompany = async (req, res) => {
         },
       },
     });
+
+    // Log the registration
+    req.user = createdUser;
+    req.companyId = createdCompany._id;
+    await logAction(req, 'CREATE', 'Company', `New company registered: ${createdCompany.name}`);
+    
   } catch (error) {
     // Roll back if partially created
     try {
@@ -145,6 +152,12 @@ exports.login = async (req, res) => {
     };
 
     res.status(200).json({ success: true, token, user: userData });
+
+    // Log the login
+    req.user = user;
+    req.companyId = user.company;
+    await logAction(req, 'LOGIN', 'User', `User logged in: ${user.fullName}`);
+    
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -208,6 +221,8 @@ exports.register = async (req, res) => {
         role: user.role
       }
     });
+
+    await logAction(req, 'CREATE', 'User', `Admin created new user: ${user.email}`, null, user._id);
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -372,6 +387,9 @@ exports.updatePassword = async (req, res) => {
     const token = user.getSignedJwtToken();
 
     res.status(200).json({ success: true, token, message: 'Password updated' });
+
+    await logAction(req, 'UPDATE', 'User', `User updated their password`, null, user._id);
+    
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -380,5 +398,6 @@ exports.updatePassword = async (req, res) => {
 // @desc Logout user
 // @route POST /api/auth/logout
 exports.logout = async (req, res) => {
+  await logAction(req, 'LOGOUT', 'User', `User logged out: ${req.user.firstName} ${req.user.lastName}`);
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 };

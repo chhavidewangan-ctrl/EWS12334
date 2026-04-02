@@ -37,4 +37,7 @@ router.post('/tickets/:id/reply', sys.replyTicket);
 router.route('/holidays').get(sys.getHolidays).post(authorize('superadmin', 'admin', 'hr'), sys.createHoliday);
 router.delete('/holidays/:id', authorize('superadmin', 'admin', 'hr'), sys.deleteHoliday);
 
+// Audit Logs
+router.get('/audit-logs', authorize('superadmin', 'admin'), sys.getAuditLogs);
+
 module.exports = router;

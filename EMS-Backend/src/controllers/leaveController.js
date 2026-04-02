@@ -1,12 +1,15 @@
 const Leave = require('../models/Leave');
 const Employee = require('../models/Employee');
 const { Notification } = require('../models/System');
+const { logAction } = require('../utils/auditLogger');
 
 // @desc Apply for leave
 // @route POST /api/leaves
 exports.applyLeave = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ user: req.user.id });
+    const query = { user: req.user.id };
+    if (req.companyId) query.company = req.companyId;
+    const employee = await Employee.findOne(query);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee profile not found' });
     }
@@ -32,7 +35,7 @@ exports.applyLeave = async (req, res) => {
     const leave = await Leave.create({
       employee: employee._id,
       user: req.user.id,
-      company: req.user.company,
+      company: req.companyId || req.user.company,
       leaveType,
       startDate: start,
       endDate: end,
@@ -45,13 +48,14 @@ exports.applyLeave = async (req, res) => {
 
     // Create notification for manager/admin
     await Notification.create({
-      company: req.user.company,
+      company: req.companyId || req.user.company,
       user: req.user.id,
       title: 'New Leave Request',
       message: `${req.user.firstName} ${req.user.lastName} applied for ${leaveType} leave`,
       type: 'leave'
     });
 
+    await logAction(req, 'CREATE', 'Leave', `Applied for ${leaveType} leave`, null, leave._id);
     res.status(201).json({ success: true, leave });
   } catch (error) {
     console.error('Apply leave error:', error);
@@ -77,7 +81,9 @@ exports.getLeaves = async (req, res) => {
 
     // Employee sees only own leaves
     if (req.user.role === 'employee') {
-      const emp = await Employee.findOne({ user: req.user.id });
+      const eQuery = { user: req.user.id };
+      if (req.companyId) eQuery.company = req.companyId;
+      const emp = await Employee.findOne(eQuery);
       if (emp) query.employee = emp._id;
     }
 
@@ -111,7 +117,7 @@ exports.updateLeaveStatus = async (req, res) => {
   try {
     const { status, rejectionReason } = req.body;
 
-    const leave = await Leave.findById(req.params.id).populate('employee');
+    const leave = await Leave.findOne({ _id: req.params.id, company: req.companyId }).populate('employee');
     if (!leave) {
       return res.status(404).json({ success: false, message: 'Leave not found' });
     }
@@ -125,7 +131,7 @@ exports.updateLeaveStatus = async (req, res) => {
     // Update leave balance if approved
     if (status === 'approved' && leave.leaveType !== 'unpaid') {
       const employee = await Employee.findById(leave.employee._id);
-      if (employee.leaveBalance[leave.leaveType] !== undefined) {
+      if (employee && employee.leaveBalance[leave.leaveType] !== undefined) {
         employee.leaveBalance[leave.leaveType] -= leave.totalDays;
         await employee.save();
       }
@@ -140,6 +146,7 @@ exports.updateLeaveStatus = async (req, res) => {
       type: 'leave'
     });
 
+    await logAction(req, 'STATUS_CHANGE', 'Leave', `Leave ${status} for ${leave.employee.user.firstName}`, null, leave._id);
     res.status(200).json({ success: true, leave });
   } catch (error) {
     console.error('Update leave status error:', error);
@@ -155,9 +162,11 @@ exports.getLeaveBalance = async (req, res) => {
     let employee;
 
     if (employeeId) {
-      employee = await Employee.findById(employeeId);
+      employee = await Employee.findOne({ _id: employeeId, company: req.companyId });
     } else {
-      employee = await Employee.findOne({ user: req.user.id });
+      const eQuery = { user: req.user.id };
+      if (req.companyId) eQuery.company = req.companyId;
+      employee = await Employee.findOne(eQuery);
     }
 
     if (!employee) {
@@ -206,7 +215,7 @@ exports.getLeaveBalance = async (req, res) => {
 // @route PUT /api/leaves/:id/cancel
 exports.cancelLeave = async (req, res) => {
   try {
-    const leave = await Leave.findById(req.params.id);
+    const leave = await Leave.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!leave) {
       return res.status(404).json({ success: false, message: 'Leave not found' });
@@ -229,12 +238,13 @@ exports.cancelLeave = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
 // @desc Update leave
 // @route PUT /api/leaves/:id
 exports.updateLeave = async (req, res) => {
   try {
     const { leaveType, startDate, endDate, reason, isHalfDay } = req.body;
-    let leave = await Leave.findById(req.params.id);
+    let leave = await Leave.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!leave) {
       return res.status(404).json({ success: false, message: 'Leave not found' });
@@ -250,7 +260,7 @@ exports.updateLeave = async (req, res) => {
     if (isHalfDay) totalDays = 0.5;
 
     // Check balance if type or days changed
-    const employee = await Employee.findOne({ user: req.user.id });
+    const employee = await Employee.findOne({ user: req.user.id, company: req.companyId });
     if (leaveType !== 'unpaid' && leaveType !== 'other') {
       if (employee.leaveBalance[leaveType] < totalDays) {
         return res.status(400).json({ success: false, message: 'Insufficient leave balance' });

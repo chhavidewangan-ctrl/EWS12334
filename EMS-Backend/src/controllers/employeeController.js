@@ -2,13 +2,19 @@ const Employee = require('../models/Employee');
 const User = require('../models/User');
 const { sendEmail, emailTemplates } = require('../utils/email');
 const { Company, Notification } = require('../models/System');
+const { logAction } = require('../utils/auditLogger');
 
 // @desc Get all employees
 // @route GET /api/employees
 exports.getEmployees = async (req, res) => {
   try {
     const query = {};
-    if (req.companyId) query.company = req.companyId;
+    if (req.companyId) {
+      query.company = req.companyId;
+    } else if (req.user.role !== 'platform_superadmin') {
+      // If not platform admin and no companyId, return empty list
+      return res.status(200).json({ success: true, count: 0, total: 0, employees: [] });
+    }
 
     const { department, status, search, page = 1, limit = 10 } = req.query;
     if (department) query.department = department;
@@ -48,7 +54,7 @@ exports.getEmployees = async (req, res) => {
 // @route GET /api/employees/:id
 exports.getEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findById(req.params.id)
+    const employee = await Employee.findOne({ _id: req.params.id, company: req.companyId })
       .populate('user', 'firstName lastName email phone avatar role isActive lastLogin')
       .populate('company', 'name')
       .populate('branch', 'name')
@@ -58,7 +64,7 @@ exports.getEmployee = async (req, res) => {
       });
 
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
     }
 
     res.status(200).json({ success: true, employee });
@@ -145,6 +151,8 @@ exports.createEmployee = async (req, res) => {
         const template = emailTemplates.welcomeEmail(firstName, email, tempPassword);
         sendEmail({ email, subject: template.subject, html: template.html });
 
+        await logAction(req, 'CREATE', 'Employee', `Created employee ${firstName} ${lastName} (${employeeId})`, null, employee._id);
+
         return res.status(201).json({ success: true, employee: populatedEmployee });
       } catch (employeeError) {
         // CLEANUP: Delete user if employee creation fails
@@ -161,6 +169,7 @@ exports.createEmployee = async (req, res) => {
         message: 'Administrator created successfully',
         user: { id: user._id, email: user.email, role: user.role }
       });
+      await logAction(req, 'CREATE', 'User', `Created administrator ${firstName} ${lastName} (${user.role})`, null, user._id);
     }
   } catch (error) {
     console.error('Create worker error:', error);
@@ -172,15 +181,15 @@ exports.createEmployee = async (req, res) => {
 // @route PUT /api/employees/:id
 exports.updateEmployee = async (req, res) => {
   try {
-    let employee = await Employee.findById(req.params.id);
+    let employee = await Employee.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
     }
 
     // Update user info if provided
     if (req.body.firstName || req.body.lastName || req.body.phone || req.body.role) {
-      await User.findByIdAndUpdate(employee.user, {
+      await User.findOneAndUpdate({ _id: employee.user, company: req.companyId }, {
         ...(req.body.firstName && { firstName: req.body.firstName }),
         ...(req.body.lastName && { lastName: req.body.lastName }),
         ...(req.body.phone && { phone: req.body.phone }),
@@ -190,10 +199,18 @@ exports.updateEmployee = async (req, res) => {
 
     const oldStatus = employee.status;
 
-    employee = await Employee.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    }).populate('user', 'firstName lastName email phone avatar role');
+    employee = await Employee.findOneAndUpdate(
+      { _id: req.params.id, company: req.companyId },
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).populate('user', 'firstName lastName email phone avatar role');
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
+    }
 
     // Create notification only for the employee who is put 'on_notice'
     if (req.body.status === 'on_notice' && oldStatus !== 'on_notice') {
@@ -211,6 +228,8 @@ exports.updateEmployee = async (req, res) => {
       }
     }
 
+    await logAction(req, 'UPDATE', 'Employee', `Updated employee profile for ${employee.user.firstName} ${employee.user.lastName}`, req.body, employee._id);
+
     res.status(200).json({ success: true, employee });
   } catch (error) {
     console.error('Update employee error:', error);
@@ -222,19 +241,21 @@ exports.updateEmployee = async (req, res) => {
 // @route DELETE /api/employees/:id
 exports.deleteEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findById(req.params.id);
+    const employee = await Employee.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
     }
 
     // Delete associated user account
     if (employee.user) {
-      await User.findByIdAndDelete(employee.user);
+      await User.findOneAndDelete({ _id: employee.user, company: req.companyId });
     }
 
     // Delete the employee record
-    await Employee.findByIdAndDelete(req.params.id);
+    await Employee.findOneAndDelete({ _id: req.params.id, company: req.companyId });
+
+    await logAction(req, 'DELETE', 'Employee', `Deleted employee record and user account for ID: ${req.params.id}`);
 
     res.status(200).json({ success: true, message: 'Employee deleted successfully' });
   } catch (error) {
@@ -247,10 +268,10 @@ exports.deleteEmployee = async (req, res) => {
 // @route POST /api/employees/:id/documents
 exports.uploadDocument = async (req, res) => {
   try {
-    const employee = await Employee.findById(req.params.id);
+    const employee = await Employee.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
     }
 
     if (!req.file) {

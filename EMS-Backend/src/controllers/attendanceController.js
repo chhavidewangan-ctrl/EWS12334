@@ -8,7 +8,9 @@ exports.checkIn = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const employee = await Employee.findOne({ user: req.user.id });
+    const query = { user: req.user.id };
+    if (req.companyId) query.company = req.companyId;
+    const employee = await Employee.findOne(query);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee profile not found' });
     }
@@ -56,7 +58,9 @@ exports.checkOut = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const employee = await Employee.findOne({ user: req.user.id });
+    const query = { user: req.user.id };
+    if (req.companyId) query.company = req.companyId;
+    const employee = await Employee.findOne(query);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee profile not found' });
     }
@@ -112,7 +116,9 @@ exports.getAttendance = async (req, res) => {
 
     // For employee role, show only own attendance
     if (req.user.role === 'employee') {
-      const emp = await Employee.findOne({ user: req.user.id });
+      const eQuery = { user: req.user.id };
+      if (req.companyId) eQuery.company = req.companyId;
+      const emp = await Employee.findOne(eQuery);
       if (emp) query.employee = emp._id;
     }
 

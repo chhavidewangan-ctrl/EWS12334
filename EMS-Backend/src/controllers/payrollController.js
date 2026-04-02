@@ -1,6 +1,7 @@
 const Payroll = require('../models/Payroll');
 const Employee = require('../models/Employee');
 const Attendance = require('../models/Attendance');
+const { logAction } = require('../utils/auditLogger');
 
 // @desc Generate payroll
 // @route POST /api/payroll/generate
@@ -10,7 +11,9 @@ exports.generatePayroll = async (req, res) => {
 
     let employees;
     if (employeeId) {
-      employees = [await Employee.findById(employeeId)];
+      const emp = await Employee.findOne({ _id: employeeId, company: req.companyId });
+      if (!emp) return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
+      employees = [emp];
     } else {
       const query = { status: 'active' };
       if (req.companyId) query.company = req.companyId;
@@ -117,6 +120,8 @@ exports.generatePayroll = async (req, res) => {
       payrolls.push(payroll);
     }
 
+    await logAction(req, 'CREATE', 'Payroll', `Generated payroll for ${month}/${year} (${payrolls.length} employees)`);
+
     res.status(201).json({
       success: true,
       count: payrolls.length,
@@ -173,7 +178,7 @@ exports.getPayrolls = async (req, res) => {
 // @route GET /api/payroll/:id
 exports.getPayroll = async (req, res) => {
   try {
-    const payroll = await Payroll.findById(req.params.id)
+    const payroll = await Payroll.findOne({ _id: req.params.id, company: req.companyId })
       .populate({
         path: 'employee',
         populate: [
@@ -183,7 +188,7 @@ exports.getPayroll = async (req, res) => {
       });
 
     if (!payroll) {
-      return res.status(404).json({ success: false, message: 'Payroll not found' });
+      return res.status(404).json({ success: false, message: 'Payroll not found or unauthorized' });
     }
 
     res.status(200).json({ success: true, payroll });
@@ -197,10 +202,10 @@ exports.getPayroll = async (req, res) => {
 exports.updatePayrollStatus = async (req, res) => {
   try {
     const { status, paymentMode, transactionId, paidDate } = req.body;
-    const payroll = await Payroll.findById(req.params.id);
+    const payroll = await Payroll.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!payroll) {
-      return res.status(404).json({ success: false, message: 'Payroll not found' });
+      return res.status(404).json({ success: false, message: 'Payroll not found or unauthorized' });
     }
 
     payroll.status = status;
@@ -211,6 +216,8 @@ exports.updatePayrollStatus = async (req, res) => {
       payroll.transactionId = transactionId;
     }
     await payroll.save();
+    
+    await logAction(req, 'UPDATE', 'Payroll', `Updated payroll status to ${status} for ${payroll._id}`, null, payroll._id);
 
     res.status(200).json({ success: true, payroll });
   } catch (error) {

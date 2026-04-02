@@ -170,7 +170,9 @@ export const systemAPI = {
   getBranches: () => api.get('/branches'),
   createBranch: (data) => api.post('/branches', data),
   updateBranch: (id, data) => api.put(`/branches/${id}`, data),
-  deleteBranch: (id) => api.delete(`/branches/${id}`)
+  deleteBranch: (id) => api.delete(`/branches/${id}`),
+  // Audit Logs
+  getAuditLogs: (params) => api.get('/audit-logs', { params })
 };
 
 export default api;
