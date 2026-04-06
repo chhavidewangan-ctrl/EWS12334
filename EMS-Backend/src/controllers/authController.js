@@ -52,14 +52,14 @@ exports.registerCompany = async (req, res) => {
       isActive: true,
     });
 
-    // ── Create Super-Admin User ──────────────────────────────────────────
+    // ── Create Company Administrator User ───────────────────────────────
     createdUser = await User.create({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.toLowerCase().trim(),
       password,
       phone: phone || '',
-      role: 'superadmin',
+      role: 'admin',
       company: createdCompany._id,
       isActive: true,
     });
