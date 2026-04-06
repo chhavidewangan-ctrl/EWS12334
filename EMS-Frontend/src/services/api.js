@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_URL = BASE_URL.replace('/api', '');
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -159,6 +160,7 @@ export const systemAPI = {
   deleteHoliday: (id) => api.delete(`/holidays/${id}`),
   // Company / Branches
   getCompany: () => api.get('/companies'),
+  getCompaniesPublic: () => api.get('/auth/companies'),
   createCompany: (data) => api.post('/companies', data),
   updateCompany: (id, data) => {
     // If only one argument is provided, it's the data, and we use the default route

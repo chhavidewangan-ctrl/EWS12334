@@ -16,6 +16,7 @@ export default function LeavesPage() {
   const [form, setForm] = useState({ leaveType: 'casual', startDate: '', endDate: '', reason: '', isHalfDay: false });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [rejectModal, setRejectModal] = useState({ show: false, id: null, reason: '' });
 
   const DateInput = ({ label, value, onChange, min, required }) => {
     // Helper to format YYYY-MM-DD to DD/MM/YYYY for display
@@ -105,6 +106,11 @@ export default function LeavesPage() {
   };
 
   const handleStatus = (id, status) => {
+    if (status === 'rejected') {
+      setRejectModal({ show: true, id, reason: '' });
+      return;
+    }
+
     askConfirm(`Are you sure you want to ${status} this leave request?`, async () => {
       try {
         await leaveAPI.updateStatus(id, { status });
@@ -113,6 +119,23 @@ export default function LeavesPage() {
         setViewLeave(null);
       } catch { showToast('Operation failed', 'danger'); }
     });
+  };
+
+  const confirmRejection = async () => {
+    if (!rejectModal.reason.trim()) {
+      showToast('Please provide a reason for rejection', 'danger');
+      return;
+    }
+    try {
+      await leaveAPI.updateStatus(rejectModal.id, { 
+        status: 'rejected', 
+        rejectionReason: rejectModal.reason 
+      });
+      setRejectModal({ show: false, id: null, reason: '' });
+      fetchLeaves();
+      showToast('Leave request rejected');
+      setViewLeave(null);
+    } catch { showToast('Operation failed', 'danger'); }
   };
 
   const handleCancel = (id) => {
@@ -329,7 +352,10 @@ export default function LeavesPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ overflowY: 'auto', flex:1, paddingRight:12, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <style jsx>{`
+                div::-webkit-scrollbar { display: none; }
+              `}</style>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <div className="avatar" style={{ width: 44, height: 44 }}>
                   {viewLeave.employee?.user?.firstName?.[0]}{viewLeave.employee?.user?.lastName?.[0]}
@@ -405,6 +431,40 @@ export default function LeavesPage() {
           <style jsx>{`
             @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
           `}</style>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {rejectModal.show && (
+        <div className="modal-overlay" style={{ zIndex: 10001 }}>
+          <div className="modal modal-sm" style={{ maxWidth: 400 }}>
+            <div className="modal-header">
+              <h2>Rejection Reason</h2>
+              <button className="icon-btn" onClick={() => setRejectModal({ show: false, id: null, reason: '' })}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
+                Please provide a reason for rejecting this leave request. This will be visible to the employee.
+              </p>
+              <div className="form-group">
+                <label className="form-label">Reason for Rejection *</label>
+                <textarea 
+                  className="form-control" 
+                  rows={4} 
+                  required
+                  placeholder="e.g. Critical project deadline, Insufficient coverage..." 
+                  value={rejectModal.reason} 
+                  onChange={e => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setRejectModal({ show: false, id: null, reason: '' })}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmRejection}>Confirm Rejection</button>
+            </div>
+          </div>
         </div>
       )}
 

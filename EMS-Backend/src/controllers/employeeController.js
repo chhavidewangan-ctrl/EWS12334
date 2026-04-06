@@ -16,7 +16,13 @@ exports.getEmployees = async (req, res) => {
       return res.status(200).json({ success: true, count: 0, total: 0, employees: [] });
     }
 
-    const { department, status, search, page = 1, limit = 10 } = req.query;
+    const { department, status, search, company: queryCompany, page = 1, limit = 10 } = req.query;
+    
+    // If superadmin chooses a specific company
+    if (queryCompany && req.user.role === 'superadmin') {
+      query.company = queryCompany;
+    }
+
     if (department) query.department = department;
     if (status) query.status = status;
     if (search) {
@@ -30,6 +36,7 @@ exports.getEmployees = async (req, res) => {
     const total = await Employee.countDocuments(query);
     const employees = await Employee.find(query)
       .populate('user', 'firstName lastName email phone avatar role isActive')
+      .populate('company', 'name')
       .populate('branch', 'name')
       .populate('reportingManager', 'employeeId')
       .sort({ createdAt: -1 })
@@ -187,21 +194,33 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Employee not found or unauthorized' });
     }
 
+    const { 
+      firstName, lastName, phone, role, email,
+      ...employeeData 
+    } = req.body;
+
+    // Remove immutable or problematic fields
+    delete employeeData.user;
+    delete employeeData.company;
+    delete employeeData._id;
+    delete employeeData.__v;
+
     // Update user info if provided
-    if (req.body.firstName || req.body.lastName || req.body.phone || req.body.role) {
-      await User.findOneAndUpdate({ _id: employee.user, company: req.companyId }, {
-        ...(req.body.firstName && { firstName: req.body.firstName }),
-        ...(req.body.lastName && { lastName: req.body.lastName }),
-        ...(req.body.phone && { phone: req.body.phone }),
-        ...(req.body.role && { role: req.body.role })
+    if (firstName || lastName || phone || role || email) {
+      await User.findByIdAndUpdate(employee.user, {
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+        ...(phone && { phone }),
+        ...(role && { role }),
+        ...(email && { email: email.toLowerCase().trim() })
       });
     }
 
     const oldStatus = employee.status;
 
-    employee = await Employee.findOneAndUpdate(
-      { _id: req.params.id, company: req.companyId },
-      req.body,
+    employee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      { $set: employeeData },
       {
         new: true,
         runValidators: true
@@ -278,11 +297,22 @@ exports.uploadDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please upload a file' });
     }
 
-    employee.uploadedDocuments.push({
-      name: req.body.name || req.file.originalname,
-      type: req.body.type || 'other',
-      url: `/uploads/${req.file.filename}`
-    });
+    const photoUrl = `/uploads/${req.file.filename}`;
+    
+    if (req.body.type === 'profile_photo') {
+      console.log(`Setting profile photo for employee ${employee._id}, user: ${employee.user}`);
+      employee.profilePhoto = photoUrl;
+      if (employee.user) {
+        const updatedUser = await User.findByIdAndUpdate(employee.user, { avatar: photoUrl }, { new: true });
+        console.log('User avatar updated:', updatedUser?.avatar);
+      }
+    } else {
+      employee.uploadedDocuments.push({
+        name: req.body.name || req.file.originalname,
+        type: req.body.type || 'other',
+        url: photoUrl
+      });
+    }
 
     await employee.save();
 

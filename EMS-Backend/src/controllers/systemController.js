@@ -10,6 +10,13 @@ exports.getCompanies = async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
+exports.getPublicCompanies = async (req, res) => {
+  try {
+    const companies = await Company.find().select('name _id').sort({ name: 1 });
+    res.status(200).json({ success: true, companies });
+  } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
+};
+
 exports.getCompany = async (req, res) => {
   try {
     const company = await Company.findById(req.params.id || req.user.company);

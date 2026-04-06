@@ -1,5 +1,6 @@
-'use client';
+"use client";
 import { useState, useEffect, useCallback } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { projectAPI, employeeAPI } from '../../services/api';
 
 const STATUS_COLS = [
@@ -24,6 +25,10 @@ export default function TasksPage() {
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [taskToComplete, setTaskToComplete] = useState(null);
+  const [completionNote, setCompletionNote] = useState('');
   const [view, setView] = useState('list');
   const [filterProject, setFilterProject] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -53,7 +58,10 @@ export default function TasksPage() {
     finally { setLoading(false); }
   }, [filterProject, filterStatus, filterPriority]);
 
-  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => {
+    setMounted(true);
+    fetchTasks();
+  }, [fetchTasks]);
 
   useEffect(() => {
     projectAPI.getAll({ limit: 100 }).then(r => setProjects(r.data.projects || [])).catch(() => {});
@@ -86,6 +94,11 @@ export default function TasksPage() {
     setSaving(true);
     try {
       if (editTask) {
+        if (editTask.status === 'completed' && form.status !== 'completed') {
+          showToast('Completed tasks cannot be moved back to progress.', 'warning');
+          setSaving(false);
+          return;
+        }
         await projectAPI.updateTask(editTask._id, form);
         showToast('Task updated!');
       } else {
@@ -112,11 +125,81 @@ export default function TasksPage() {
     });
   };
 
-  const handleStatusChange = async (id, status) => {
+  const onDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const task = tasks.find(t => t._id === draggableId);
+    const newStatus = destination.droppableId;
+
+    if (task?.status === 'completed' && newStatus !== 'completed') {
+      showToast('Completed tasks cannot be moved back to progress.', 'warning');
+      return;
+    }
+
+    if (newStatus === 'completed') {
+      setTaskToComplete(task);
+      setShowCompleteModal(true);
+      return;
+    }
+
     try {
-      await projectAPI.updateTask(id, { status });
-      setTasks(prev => prev.map(t => t._id === id ? { ...t, status } : t));
-    } catch { }
+      // Optimistic update
+      setTasks(prev => prev.map(t => t._id === draggableId ? { ...t, status: newStatus } : t));
+      await projectAPI.updateTask(draggableId, { status: newStatus });
+    } catch {
+      // Revert if failed
+      fetchTasks();
+      showToast('Failed to update task status', 'danger');
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    const task = tasks.find(t => t._id === id);
+    if (task?.status === 'completed' && newStatus !== 'completed') {
+      showToast('Completed tasks cannot be moved back to progress.', 'warning');
+      return;
+    }
+
+    if (newStatus === 'completed') {
+      setTaskToComplete(task);
+      setShowCompleteModal(true);
+      return;
+    }
+
+    try {
+      await projectAPI.updateTask(id, { status: newStatus });
+      setTasks(prev => prev.map(t => t._id === id ? { ...t, status: newStatus } : t));
+    } catch { 
+      showToast('Status update failed', 'danger');
+    }
+  };
+
+  const confirmCompletion = async () => {
+    if (!taskToComplete) return;
+    try {
+      setTasks(prev => prev.map(t => t._id === taskToComplete._id ? { ...t, status: 'completed', completionNote } : t));
+      await projectAPI.updateTask(taskToComplete._id, { 
+        status: 'completed', 
+        completionNote,
+        completedDate: new Date()
+      });
+      showToast('Task marked as completed!');
+      setShowCompleteModal(false);
+      setCompletionNote('');
+      setTaskToComplete(null);
+    } catch (err) {
+      fetchTasks();
+      showToast('Failed to complete task', 'danger');
+    }
   };
 
   const tasksByStatus = (status) => tasks.filter(t => t.status === status);
@@ -164,71 +247,128 @@ export default function TasksPage() {
         <button className="btn btn-secondary" onClick={() => { setFilterProject(''); setFilterStatus(''); setFilterPriority(''); }}>Reset</button>
       </div>
 
-      {loading ? (
+      {loading || !mounted ? (
         <div className="loading-overlay"><div className="loading-spinner" style={{ width: 36, height: 36 }}></div></div>
       ) : view === 'board' ? (
         /* ---- KANBAN BOARD ---- */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, alignItems: 'start' }}>
-          {STATUS_COLS.map(col => (
-            <div key={col.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color }}></div>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{col.label}</span>
-                <span style={{ marginLeft: 'auto', background: col.bg, color: col.color, borderRadius: 99, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>
-                  {tasksByStatus(col.id).length}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 100 }}>
-                {tasksByStatus(col.id).map(task => (
-                  <div key={task._id} className="card" style={{ padding: 14, cursor: 'pointer' }} onClick={() => openEdit(task)}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span className={`tag tag-${PRIORITY_C[task.priority]}`}>{task.priority}</span>
-                      {isOverdue(task.dueDate) && task.status !== 'completed' && (
-                        <span className="tag tag-danger">Overdue</span>
-                      )}
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, lineHeight: 1.4 }}>{task.title}</div>
-                    {task.description && (
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
-                        {task.description.slice(0, 60)}{task.description.length > 60 ? '...' : ''}
-                      </div>
-                    )}
-                    {task.project?.name && (
-                      <div style={{ fontSize: 11, color: 'var(--primary)', marginBottom: 8 }}>📁 {task.project.name}</div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                      {task.assignedTo?.user ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
-                          <div className="avatar" style={{ width: 20, height: 20, fontSize: 8 }}>
-                            {task.assignedTo.user.firstName?.[0]}{task.assignedTo.user.lastName?.[0]}
-                          </div>
-                          {task.assignedTo.user.firstName}
-                        </div>
-                      ) : <span></span>}
-                      {task.dueDate && (
-                        <span style={{ fontSize: 10, color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-muted)' }}>
-                          {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        </span>
-                      )}
-                    </div>
-                    {/* Quick status change */}
-                    <div style={{ display: 'flex', gap: 3, marginTop: 8 }} onClick={e => e.stopPropagation()}>
-                      {STATUS_COLS.filter(s => s.id !== col.id).map(s => (
-                        <button key={s.id} onClick={() => handleStatusChange(task._id, s.id)}
-                          style={{ flex: 1, padding: '3px 0', fontSize: 9, border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                          → {s.label.split(' ')[0]}
-                        </button>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, alignItems: 'start' }}>
+            {STATUS_COLS.map(col => (
+              <div key={col.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color }}></div>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{col.label}</span>
+                  <span style={{ marginLeft: 'auto', background: col.bg, color: col.color, borderRadius: 99, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>
+                    {tasksByStatus(col.id).length}
+                  </span>
+                </div>
+
+                <Droppable droppableId={col.id}>
+                  {(provided, snapshot) => (
+                    <div 
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: 8, 
+                        minHeight: 150,
+                        background: snapshot.isDraggingOver ? 'rgba(255,255,255,0.03)' : 'transparent',
+                        borderRadius: 8,
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                      {tasksByStatus(col.id).map((task, index) => (
+                        <Draggable 
+                          key={task._id} 
+                          draggableId={task._id} 
+                          index={index}
+                          isDragDisabled={task.status === 'completed'}
+                        >
+                          {(provided, snapshot) => (
+                            <div 
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={`card ${snapshot.isDragging ? 'dragging' : ''}`} 
+                              style={{ 
+                                padding: 14, 
+                                cursor: task.status === 'completed' ? 'default' : 'grab',
+                                border: snapshot.isDragging ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                boxShadow: snapshot.isDragging ? '0 8px 20px rgba(0,0,0,0.3)' : 'none',
+                                opacity: task.status === 'completed' ? 0.8 : 1,
+                                ...provided.draggableProps.style
+                              }}
+                              onClick={() => openEdit(task)}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <span className={`tag tag-${PRIORITY_C[task.priority]}`}>{task.priority}</span>
+                                {isOverdue(task.dueDate) && task.status !== 'completed' && (
+                                  <span className="tag tag-danger">Overdue</span>
+                                )}
+                              </div>
+                              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, lineHeight: 1.4 }}>{task.title}</div>
+                              {task.description && (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
+                                  {task.description.slice(0, 60)}{task.description.length > 60 ? '...' : ''}
+                                </div>
+                              )}
+                              {task.project?.name && (
+                                <div style={{ fontSize: 11, color: 'var(--primary)', marginBottom: 8 }}>📁 {task.project.name}</div>
+                              )}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                {task.assignedTo?.user ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+                                    <div className="avatar" style={{ width: 20, height: 20, fontSize: 8 }}>
+                                      {task.assignedTo.user.firstName?.[0]}{task.assignedTo.user.lastName?.[0]}
+                                    </div>
+                                    {task.assignedTo.user.firstName}
+                                  </div>
+                                ) : <span></span>}
+                                {task.dueDate && (
+                                  <span style={{ fontSize: 10, color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-muted)' }}>
+                                    {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Quick status change - Hidden during drag or for completed */}
+                              {task.status !== 'completed' && !snapshot.isDragging && (
+                                <div style={{ display: 'flex', gap: 3, marginTop: 8 }} onClick={e => e.stopPropagation()}>
+                                  {STATUS_COLS.filter(s => s.id !== col.id).map(s => (
+                                    <button 
+                                      key={s.id} 
+                                      onClick={() => handleStatusChange(task._id, s.id)}
+                                      style={{ 
+                                        flex: 1, 
+                                        padding: '3px 0', 
+                                        fontSize: 9, 
+                                        border: '1px solid var(--border)', 
+                                        borderRadius: 4, 
+                                        background: 'transparent', 
+                                        cursor: 'pointer', 
+                                        color: 'var(--text-muted)' 
+                                      }}
+                                    >
+                                      → {s.label.split(' ')[0]}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Draggable>
                       ))}
+                      {provided.placeholder}
+                      <button onClick={openCreate} style={{ width: '100%', padding: '8px', border: '1px dashed var(--border)', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <Icon path="M12 5v14M5 12h14" size={12} /> Add task
+                      </button>
                     </div>
-                  </div>
-                ))}
-                <button onClick={openCreate} style={{ padding: '8px', border: '1px dashed var(--border)', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                  <Icon path="M12 5v14M5 12h14" size={12} /> Add task
-                </button>
+                  )}
+                </Droppable>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </DragDropContext>
       ) : (
         /* ---- LIST VIEW ---- */
         <div className="card">
@@ -278,9 +418,22 @@ export default function TasksPage() {
                     </td>
                     <td>{task.estimatedHours ? `${task.estimatedHours}h` : '-'}</td>
                     <td>
-                      <select value={task.status} onChange={e => handleStatusChange(task._id, e.target.value)}
-                        style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '3px 6px', fontSize: 12, background: 'var(--bg-card)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                        {STATUS_COLS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      <select 
+                        value={task.status} 
+                        onChange={e => handleStatusChange(task._id, e.target.value)}
+                        disabled={task.status === 'completed'}
+                        style={{ 
+                          border: '1px solid var(--border)', 
+                          borderRadius: 6, 
+                          padding: '3px 6px', 
+                          fontSize: 12, 
+                          background: 'var(--bg-card)', 
+                          color: 'var(--text-primary)', 
+                          cursor: task.status === 'completed' ? 'not-allowed' : 'pointer',
+                          opacity: task.status === 'completed' ? 0.7 : 1
+                        }}
+                      >
+                        {STATUS_COLS.map(s => <option key={s.id} value={s.id} disabled={task.status === 'completed' && s.id !== 'completed'}>{s.label}</option>)}
                       </select>
                     </td>
                     <td>
@@ -350,8 +503,21 @@ export default function TasksPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Status</label>
-                    <select className="form-control" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                      {STATUS_COLS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    <select 
+                      className="form-control" 
+                      value={form.status} 
+                      onChange={e => setForm({ ...form, status: e.target.value })}
+                      disabled={editTask?.status === 'completed'}
+                    >
+                      {STATUS_COLS.map(s => (
+                        <option 
+                          key={s.id} 
+                          value={s.id} 
+                          disabled={editTask?.status === 'completed' && s.id !== 'completed'}
+                        >
+                          {s.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
@@ -403,6 +569,40 @@ export default function TasksPage() {
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button className="btn btn-secondary" onClick={() => setConfirm({ ...confirm, show: false })}>Cancel</button>
               <button className="btn btn-danger" onClick={() => { confirm.onConfirm(); setConfirm({ ...confirm, show: false }); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Completion Note Modal */}
+      {showCompleteModal && (
+        <div className="modal-overlay" style={{ zIndex: 10002 }}>
+          <div className="modal modal-sm" style={{ textAlign: 'left' }}>
+            <div className="modal-header">
+              <h2>Complete Task</h2>
+              <button className="icon-btn" onClick={() => setShowCompleteModal(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
+                Please provide a summary or note about the work done to complete this task.
+              </p>
+              <div className="form-group">
+                <label className="form-label">Completion Note *</label>
+                <textarea 
+                  className="form-control" 
+                  rows={4}
+                  value={completionNote}
+                  onChange={(e) => setCompletionNote(e.target.value)}
+                  placeholder="What was achieved? Any final remarks?"
+                  required
+                  autoFocus
+                ></textarea>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowCompleteModal(false)}>Cancel</button>
+              <button className="btn btn-success" onClick={confirmCompletion}>Mark as Completed</button>
             </div>
           </div>
         </div>

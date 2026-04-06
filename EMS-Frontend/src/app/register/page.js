@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthProvider } from '../../context/AuthContext';
-import { authAPI } from '../../services/api';
+import { authAPI, systemAPI } from '../../services/api';
 
 const ROLES = [
   { value: 'employee', label: 'Employee' },
@@ -87,7 +87,9 @@ function RegisterForm() {
     password: '',
     confirmPassword: '',
     role: 'employee',
+    company: '',
   });
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -96,9 +98,22 @@ function RegisterForm() {
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await systemAPI.getCompaniesPublic();
+        setCompanies(Array.isArray(res.data.companies) ? res.data.companies : []);
+      } catch (err) {
+        console.error('Failed to fetch companies:', err);
+      }
+    };
+    fetchCompanies();
+  }, []);
+
   const validate = () => {
     if (!form.firstName.trim()) return 'First name is required.';
     if (!form.lastName.trim()) return 'Last name is required.';
+    if (!form.company) return 'Please select your organization.';
     if (!form.email.trim()) return 'Email is required.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'Enter a valid email address.';
     if (form.password.length < 8) return 'Password must be at least 8 characters.';
@@ -125,6 +140,7 @@ function RegisterForm() {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         role: form.role,
+        company: form.company,
       });
       setSuccess('Account created successfully! Redirecting to login…');
       setTimeout(() => router.replace('/login'), 1800);
@@ -248,6 +264,38 @@ function RegisterForm() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="auth-form-group">
+            <label>Organization / Company *</label>
+            <select
+              id="reg-company"
+              value={form.company}
+              onChange={set('company')}
+              required
+              style={{
+                width: '100%', padding: '12px 14px',
+                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 10, color: 'white', fontSize: 14,
+                transition: 'border-color 0.2s', cursor: 'pointer',
+                appearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center',
+                borderColor: (!form.company && error.includes('organization')) ? '#ef4444' : 'rgba(255,255,255,0.12)',
+              }}
+            >
+              <option value="" style={{ background: '#1e293b' }}>Select your company</option>
+              {companies.sort((a,b) => a.name.localeCompare(b.name)).map((c) => (
+                <option key={c._id} value={c._id} style={{ background: '#1e293b', color: 'white' }}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {companies.length === 0 && !loading && (
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                Loading companies...
+              </p>
+            )}
           </div>
 
           {/* Password */}

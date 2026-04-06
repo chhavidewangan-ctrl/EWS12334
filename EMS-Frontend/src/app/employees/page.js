@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { employeeAPI, systemAPI } from '../../services/api';
+import { employeeAPI, systemAPI, API_URL } from '../../services/api';
 
 const DEPT_OPTIONS = ['Engineering','HR','Finance','Marketing','Sales','Operations','Design','Management','Support','IT'];
 const STATUS_OPTIONS = ['active','inactive','on_notice','terminated','resigned'];
@@ -18,12 +18,16 @@ export default function EmployeesPage() {
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const INITIAL_FORM = { 
-    firstName: '', lastName: '', email: '', employeeId: '', department: '', designation: '', 
-    joiningDate: '', role: 'employee', employmentType: 'full_time',
+    firstName: '', lastName: '', email: '', password: '', employeeId: '', department: '', designation: '', 
+    joiningDate: '', role: 'employee', employmentType: 'full_time', company: '',
+    documents: { aadharNumber: '', panNumber: '', voterIdNumber: '', drivingLicense: '', passportNumber: '' },
     leaveBalance: { casual: 12, sick: 12, earned: 15, compensatory: 0 }
   };
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
+  const [idProofFile, setIdProofFile] = useState(null);
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [idProofType, setIdProofType] = useState('aadharNumber');
   const [error, setError] = useState('');
   const [stats, setStats] = useState(null);
   const [viewEmp, setViewEmp] = useState(null);
@@ -33,6 +37,9 @@ export default function EmployeesPage() {
   const [msgRecipient, setMsgRecipient] = useState(null);
   const [msgForm, setMsgForm] = useState({ title: '', message: '' });
   const [sendingMsg, setSendingMsg] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [companyId, setCompanyId] = useState('');
+  const [userRole, setUserRole] = useState('employee');
 
   const showToast = (msg, type = 'success') => {
     setToast({ show: true, msg, type });
@@ -46,36 +53,71 @@ export default function EmployeesPage() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await employeeAPI.getAll({ page, limit: 10, search, department, status });
+      const res = await employeeAPI.getAll({ page, limit: 10, search, department, status, company: companyId });
       const employeesData = res.data.employees || res.data.users || [];
       setEmployees(employeesData);
       setTotal(res.data.total);
       setTotalPages(res.data.totalPages);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [page, search, department, status]);
+  }, [page, search, department, status, companyId]);
 
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  useEffect(() => { 
+    fetchEmployees(); 
+  }, [fetchEmployees]);
 
   useEffect(() => {
     employeeAPI.getStats().then(res => setStats(res.data.stats)).catch(() => {});
+    
+    // Fetch user info for role tracking
+    const user = JSON.parse(localStorage.getItem('ems_user') || '{}');
+    setUserRole(user.role || 'employee');
+
+    // Fetch companies for filtering (if superadmin)
+    if (user.role === 'superadmin' || user.role === 'admin') {
+      systemAPI.getCompany().then(res => {
+        setCompanies(Array.isArray(res.data.companies) ? res.data.companies : []);
+      }).catch(() => {});
+    }
   }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
     try {
       if (isEdit) {
         await employeeAPI.update(form._id, form);
         showToast('Employee updated!');
       } else {
-        await employeeAPI.create(form);
-        showToast('Employee added!');
+        const res = await employeeAPI.create(form);
+        const empId = res.data?.employee?._id;
+        
+        // Handle ID Proof Photo Upload
+        if (idProofFile && empId) {
+          const formData = new FormData();
+          formData.append('file', idProofFile);
+          formData.append('type', 'id_proof');
+          formData.append('documentType', idProofType);
+          formData.append('description', `Uploaded ${idProofType} photo`);
+          try { await employeeAPI.uploadDocument(empId, formData); } catch (e) { console.error(e); }
+        }
+
+        // Handle Profile Photo Upload
+        if (profilePhotoFile && empId) {
+          const formData = new FormData();
+          formData.append('file', profilePhotoFile);
+          formData.append('type', 'profile_photo');
+          formData.append('name', 'Profile Photo');
+          try { await employeeAPI.uploadDocument(empId, formData); } catch (e) { console.error(e); }
+        }
+        
+        showToast(res.data?.message || 'Employee added!');
       }
       setShowModal(false);
       setIsEdit(false);
       setForm(INITIAL_FORM);
+      setIdProofFile(null);
+      setProfilePhotoFile(null);
       fetchEmployees();
     } catch (err) { showToast(err.response?.data?.message || 'Operation failed', 'danger'); }
     finally { setSaving(false); }
@@ -87,10 +129,16 @@ export default function EmployeesPage() {
       firstName: emp.user?.firstName || '',
       lastName: emp.user?.lastName || '',
       email: emp.user?.email || '',
+      password: '',
       role: emp.user?.role || 'employee',
+      company: emp.company?._id || emp.company || '',
       joiningDate: emp.joiningDate ? new Date(emp.joiningDate).toISOString().split('T')[0] : '',
-      leaveBalance: emp.leaveBalance || { casual: 12, sick: 12, earned: 15, compensatory: 0 }
+      leaveBalance: emp.leaveBalance || { casual: 12, sick: 12, earned: 15, compensatory: 0 },
+      documents: emp.documents || INITIAL_FORM.documents,
+      salaryInfo: emp.salaryInfo || { basicSalary: 0, hra: 0, specialAllowance: 0 }
     });
+    setIdProofFile(null);
+    setProfilePhotoFile(null);
     setIsEdit(true);
     setShowModal(true);
   };
@@ -174,6 +222,12 @@ export default function EmployeesPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
           <input placeholder="Search by ID, department..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
+        {(userRole === 'superadmin' || companies.length > 1) && (
+          <select className="form-control" style={{ width: 160 }} value={companyId} onChange={e => { setCompanyId(e.target.value); setPage(1); }}>
+            <option value="">All Companies</option>
+            {companies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+          </select>
+        )}
         <select className="form-control" style={{ width: 140 }} value={department} onChange={e => { setDepartment(e.target.value); setPage(1); }}>
           <option value="">All Departments</option>
           {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -190,6 +244,7 @@ export default function EmployeesPage() {
             <thead>
               <tr>
                 <th>Employee</th>
+                <th>Company</th>
                 <th>ID</th>
                 <th>Department</th>
                 <th>Designation</th>
@@ -213,14 +268,30 @@ export default function EmployeesPage() {
                 <tr key={emp._id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div className="avatar" style={{ width: 34, height: 34, fontSize: 12 }}>
-                        {emp.user?.firstName?.[0]}{emp.user?.lastName?.[0]}
+                      <div className="avatar" style={{ width: 34, height: 34, fontSize: 12, overflow: 'hidden' }}>
+                        {emp.user?.avatar || emp.profilePhoto ? (
+                          <img src={`${API_URL}${emp.user?.avatar || emp.profilePhoto}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <>{emp.user?.firstName?.[0]}{emp.user?.lastName?.[0]}</>
+                        )}
                       </div>
                       <div>
                         <div style={{ fontWeight: 500 }}>{emp.user?.firstName} {emp.user?.lastName}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.user?.email}</div>
                       </div>
                     </div>
+                  </td>
+                  <td>
+                    <span style={{ 
+                      fontSize: 11, 
+                      fontWeight: 600, 
+                      padding: '4px 8px', 
+                      background: 'rgba(99,102,241,0.08)', 
+                      borderRadius: 6, 
+                      color: 'var(--primary)' 
+                    }}>
+                      {emp.company?.name || 'Main Organization'}
+                    </span>
                   </td>
                   <td><span style={{ fontFamily: 'monospace', fontSize: 12 }}>{emp.employeeId}</span></td>
                   <td>{emp.department}</td>
@@ -269,12 +340,10 @@ export default function EmployeesPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
-              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: 8 }}>
+            <form onSubmit={handleCreate} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: 8, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <style jsx>{`
-                  div::-webkit-scrollbar { width: 4px; }
-                  div::-webkit-scrollbar-track { background: transparent; }
-                  div::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+                  div::-webkit-scrollbar { display: none; }
                   textarea::-webkit-scrollbar { display: none; }
                   textarea { scrollbar-width: none; ms-overflow-style: none; resize: none; }
                   input::-webkit-outer-spin-button,
@@ -283,6 +352,15 @@ export default function EmployeesPage() {
                 `}</style>
                 {error && <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
                 <div className="form-grid">
+                  {(userRole === 'superadmin' || companies.length > 1) && (
+                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                      <label className="form-label">Assign to Company *</label>
+                      <select className="form-control" required value={form.company} onChange={e => setForm({...form, company: e.target.value})}>
+                        <option value="">Select Company</option>
+                        {companies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                   <div className="form-group">
                     <label className="form-label">First Name *</label>
                     <input className="form-control" required value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} placeholder="John" />
@@ -293,8 +371,15 @@ export default function EmployeesPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Email *</label>
-                    <input className="form-control" type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="john@company.com" />
+                    <input className="form-control" type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="john@company.com" autoComplete="off" />
                   </div>
+                  {!isEdit && (
+                    <div className="form-group">
+                      <label className="form-label">Password *</label>
+                      <input className="form-control" type="password" required={!isEdit} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Set login password" autoComplete="new-password" />
+                      <small style={{ fontSize: 10, color: 'var(--text-muted)' }}>This will be the employee's login password</small>
+                    </div>
+                  )}
                   <div className="form-group">
                     <label className="form-label">Employee ID *</label>
                     <input className="form-control" required value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} placeholder="EMP001" />
@@ -347,6 +432,76 @@ export default function EmployeesPage() {
                   </div>
                 </div>
 
+                <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                  <h4 style={{ marginBottom: 16, fontSize: 11, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.05em' }}>Identity Proof & Photo</h4>
+                  <div className="form-grid">
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label">Profile Photo</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+                      <div className="avatar" style={{ width: 60, height: 60 }}>
+                        {profilePhotoFile ? (
+                          <img src={URL.createObjectURL(profilePhotoFile)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                        ) : (
+                          <span>IMG</span>
+                        )}
+                      </div>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={e => setProfilePhotoFile(e.target.files[0])}
+                        style={{ fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">ID Type *</label>
+                      <select className="form-control" value={idProofType} onChange={e => setIdProofType(e.target.value)}>
+                        <option value="aadharNumber">Aadhar Card</option>
+                        <option value="panNumber">PAN Card</option>
+                        <option value="voterIdNumber">Voter ID</option>
+                        <option value="drivingLicense">Driving License</option>
+                        <option value="passportNumber">Passport</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">ID Number *</label>
+                      <input 
+                        className="form-control" 
+                        placeholder="Enter ID Number" 
+                        value={form.documents?.[idProofType] || ''} 
+                        onChange={e => setForm({...form, documents: {...(form.documents||{}), [idProofType]: e.target.value }})}
+                      />
+                    </div>
+                    {!isEdit && (
+                      <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                        <label className="form-label">Upload ID Proof Photo</label>
+                        <div className="file-upload-zone" style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: '12px', textAlign: 'center', background: 'var(--bg-alt)' }}>
+                          <input 
+                            type="file" 
+                            id="idProof" 
+                            hidden 
+                            onChange={e => setIdProofFile(e.target.files[0])} 
+                            accept="image/*"
+                          />
+                          <label htmlFor="idProof" style={{ cursor: 'pointer', display: 'block' }}>
+                            {idProofFile ? (
+                              <div style={{ color: 'var(--success)', fontWeight: 500 }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8 }}><path d="M20 6L9 17l-5-5"/></svg>
+                                {idProofFile.name}
+                              </div>
+                            ) : (
+                              <div style={{ color: 'var(--text-muted)' }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginBottom: 8, display: 'block', margin: '0 auto' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Click to upload photo (PNG, JPG)
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {isEdit && (
                   <div style={{ marginTop: 24 }}>
                     <h4 style={{ marginBottom: 16, fontSize: 11, textTransform: 'uppercase', color: 'var(--primary)' }}>Leave Balance (Days)</h4>
@@ -386,8 +541,12 @@ export default function EmployeesPage() {
           <div className="modal modal-md" style={{ maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
             <div className="modal-header" style={{ justifyContent:'space-between', alignItems:'flex-start' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div className="avatar" style={{ width: 44, height: 44, background:'var(--primary)', color:'white' }}>
-                  {viewEmp.user?.firstName?.[0]}{viewEmp.user?.lastName?.[0]}
+                <div className="avatar" style={{ width: 44, height: 44, background:'var(--primary)', color:'white', overflow: 'hidden' }}>
+                  {viewEmp.user?.avatar || viewEmp.profilePhoto ? (
+                    <img src={`${API_URL}${viewEmp.user?.avatar || viewEmp.profilePhoto}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <>{viewEmp.user?.firstName?.[0]}{viewEmp.user?.lastName?.[0]}</>
+                  )}
                 </div>
                 <div>
                   <h2 style={{ fontSize: 18, marginBottom:2 }}>{viewEmp.user?.firstName} {viewEmp.user?.lastName}</h2>

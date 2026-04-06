@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { login, register, registerCompany, getMe, forgotPassword, resetPassword, verifyEmail, sendVerificationEmail, updatePassword, logout } = require('../controllers/authController');
+const { getPublicCompanies } = require('../controllers/systemController');
 const { protect } = require('../middleware/auth');
 
 router.post('/login', login);
+router.get('/companies', getPublicCompanies);
 router.post('/register', register);
 router.post('/register-company', registerCompany);
 router.get('/me', protect, getMe);
