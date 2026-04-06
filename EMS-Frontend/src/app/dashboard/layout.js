@@ -285,6 +285,10 @@ function DashboardLayout({ children }) {
     const handleEnter = (e) => {
       if (e.key === 'Enter') {
         const { target } = e;
+        
+        // Prevent accidental focus movement or submission when modifiers are pressed (Ctrl, Alt, Shift, Meta)
+        if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+
         // Ignore if focus is in a TEXTAREA (need Enter for new line) or if it's a BUTTON/SUBMIT
         if (target.tagName === 'TEXTAREA') return;
         if (target.tagName === 'BUTTON' || (target.tagName === 'INPUT' && target.type === 'submit')) return;
@@ -292,7 +296,7 @@ function DashboardLayout({ children }) {
         if (target.tagName === 'INPUT' || target.tagName === 'SELECT') {
           e.preventDefault(); // Stop form submission
 
-          // Find all focusable elements in the document
+          // Find all focusable elements in the current active context (like a modal or page)
           const focusable = Array.from(document.querySelectorAll('input, select, textarea, button, [tabindex]:not([tabindex="-1"])'))
             .filter(el => !el.disabled && el.offsetParent !== null); // Only visible and enabled
 

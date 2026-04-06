@@ -85,34 +85,35 @@ export default function EmployeesPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      let empId = form._id;
       if (isEdit) {
         await employeeAPI.update(form._id, form);
         showToast('Employee updated!');
       } else {
         const res = await employeeAPI.create(form);
-        const empId = res.data?.employee?._id;
-        
-        // Handle ID Proof Photo Upload
-        if (idProofFile && empId) {
-          const formData = new FormData();
-          formData.append('file', idProofFile);
-          formData.append('type', 'id_proof');
-          formData.append('documentType', idProofType);
-          formData.append('description', `Uploaded ${idProofType} photo`);
-          try { await employeeAPI.uploadDocument(empId, formData); } catch (e) { console.error(e); }
-        }
-
-        // Handle Profile Photo Upload
-        if (profilePhotoFile && empId) {
-          const formData = new FormData();
-          formData.append('file', profilePhotoFile);
-          formData.append('type', 'profile_photo');
-          formData.append('name', 'Profile Photo');
-          try { await employeeAPI.uploadDocument(empId, formData); } catch (e) { console.error(e); }
-        }
-        
+        empId = res.data?.employee?._id;
         showToast(res.data?.message || 'Employee added!');
       }
+      
+      // Handle ID Proof Photo Upload
+      if (idProofFile && empId) {
+        const formData = new FormData();
+        formData.append('file', idProofFile);
+        formData.append('type', 'id_proof');
+        formData.append('documentType', idProofType);
+        formData.append('description', `Uploaded ${idProofType} photo`);
+        try { await employeeAPI.uploadDocument(empId, formData); } catch (e) { console.error(e); }
+      }
+
+      // Handle Profile Photo Upload
+      if (profilePhotoFile && empId) {
+        const formData = new FormData();
+        formData.append('file', profilePhotoFile);
+        formData.append('type', 'profile_photo');
+        formData.append('name', 'Profile Photo');
+        try { await employeeAPI.uploadDocument(empId, formData); } catch (e) { console.error(e); }
+      }
+
       setShowModal(false);
       setIsEdit(false);
       setForm(INITIAL_FORM);
