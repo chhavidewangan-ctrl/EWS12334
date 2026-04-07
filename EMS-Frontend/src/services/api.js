@@ -41,6 +41,10 @@ export const authAPI = {
   verifyEmail: (data) => api.post('/auth/verifyemail', data),
   sendVerification: () => api.post('/auth/sendverification'),
   updatePassword: (data) => api.put('/auth/updatepassword', data),
+  updateProfile: (data) => api.put('/auth/profile', data),
+  uploadAvatar: (formData) => api.post('/auth/profile/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   logout: () => api.post('/auth/logout')
 };
 

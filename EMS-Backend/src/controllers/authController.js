@@ -395,6 +395,71 @@ exports.updatePassword = async (req, res) => {
   }
 };
 
+// @desc Update user profile
+// @route PUT /api/auth/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, phone } = req.body;
+    
+    // Find user and update
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (phone) user.phone = phone;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        role: user.role,
+        avatar: user.avatar,
+        phone: user.phone
+      }
+    });
+
+    await logAction(req, 'UPDATE', 'User', `User updated their profile`, null, user._id);
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc Update user avatar
+// @route POST /api/auth/profile/avatar
+exports.updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Please upload a file' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    user.avatar = `uploads/${req.file.filename}`;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile photo updated successfully',
+      avatar: user.avatar
+    });
+
+    await logAction(req, 'UPDATE', 'User', `User updated their profile photo`, null, user._id);
+  } catch (error) {
+    console.error('Update avatar error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc Logout user
 // @route POST /api/auth/logout
 exports.logout = async (req, res) => {

@@ -7,6 +7,14 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
 
+const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  return `${baseUrl}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+};
+
 function StatCard({ icon, label, value, change, changeType, iconBg, iconColor }) {
   return (
     <div className="stat-card">
@@ -36,8 +44,12 @@ function EmployeeDashboard({ d }) {
       <div className="page-header">
         <div className="page-header-left">
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div className="avatar" style={{ width: 56, height: 56, background: 'var(--primary)', color: 'white', fontSize: 24, borderRadius: '50%', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {d.employee?.user?.firstName?.[0]}{d.employee?.user?.lastName?.[0]}
+            <div className="avatar" style={{ width: 56, height: 56, background: 'var(--primary)', color: 'white', fontSize: 22, borderRadius: '50%', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', border:'2px solid white', boxShadow:'0 4px 6px -1px var(--primary-light)' }}>
+              {getImageUrl(d.employee?.user?.avatar || d.employee?.profilePhoto) ? (
+                <img src={getImageUrl(d.employee?.user?.avatar || d.employee?.profilePhoto)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <>{d.employee?.user?.firstName?.[0]}{d.employee?.user?.lastName?.[0]}</>
+              )}
             </div>
             <div>
               <h1 style={{ marginBottom: 4 }}>Hello, {d.employee?.user?.firstName}! 👋</h1>
@@ -424,7 +436,18 @@ export default function DashboardPage() {
                     <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>No recent leaves</td></tr>
                   ) : (d.recentActivities?.recentLeaves || []).map(l => (
                     <tr key={l._id}>
-                      <td>{l.employee?.user?.firstName} {l.employee?.user?.lastName}</td>
+                      <td>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <div className="avatar" style={{ width:24, height:24, fontSize:9, background:'var(--primary-light)', color:'var(--primary)' }}>
+                            {getImageUrl(l.employee?.user?.avatar || l.employee?.profilePhoto) ? (
+                              <img src={getImageUrl(l.employee?.user?.avatar || l.employee?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'inherit' }} />
+                            ) : (
+                              <>{l.employee?.user?.firstName?.[0]}{l.employee?.user?.lastName?.[0]}</>
+                            )}
+                          </div>
+                          <span>{l.employee?.user?.firstName} {l.employee?.user?.lastName}</span>
+                        </div>
+                      </td>
                       <td style={{ textTransform: 'capitalize' }}>{l.leaveType}</td>
                       <td>{l.totalDays}</td>
                       <td>
@@ -461,7 +484,18 @@ export default function DashboardPage() {
                   ) : (d.recentActivities?.recentTasks || []).map(t => (
                     <tr key={t._id}>
                       <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</td>
-                      <td>{t.assignedTo?.user?.firstName || 'Unassigned'}</td>
+                      <td>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <div className="avatar" style={{ width:24, height:24, fontSize:9, background:'var(--primary-light)', color:'var(--primary)' }}>
+                            {getImageUrl(t.assignedTo?.user?.avatar || t.assignedTo?.profilePhoto) ? (
+                              <img src={getImageUrl(t.assignedTo?.user?.avatar || t.assignedTo?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'inherit' }} />
+                            ) : (
+                              <>{t.assignedTo?.user?.firstName?.[0] || '?'}</>
+                            )}
+                          </div>
+                          <span>{t.assignedTo?.user?.firstName || 'Unassigned'}</span>
+                        </div>
+                      </td>
                       <td>
                         <span className={`tag tag-${t.status === 'completed' ? 'success' : t.status === 'in_progress' ? 'info' : 'secondary'}`}>
                           {t.status?.replace('_', ' ')}

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { authAPI } from '../../services/api';
+import { authAPI, API_URL } from '../../services/api';
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -23,10 +23,26 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage(''); setError('');
     try {
-      // Profile update endpoint could be added; using refreshUser as placeholder
-      await authAPI.getMe();
+      await authAPI.updateProfile(form);
+      await refreshUser();
       setMessage('Profile updated successfully!');
     } catch(err){ setError(err.response?.data?.message || 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setSaving(true);
+    setMessage(''); setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await authAPI.uploadAvatar(formData);
+      await refreshUser();
+      setMessage('Profile photo updated!');
+    } catch (err) { setError(err.response?.data?.message || 'Upload failed'); }
     finally { setSaving(false); }
   };
 
@@ -44,6 +60,7 @@ export default function ProfilePage() {
   };
 
   const initials = user ? `${user.firstName?.[0]||''}${user.lastName?.[0]||''}`.toUpperCase() : 'U';
+  const avatarUrl = user?.avatar ? `${API_URL}/${user.avatar}` : null;
 
   const roleColors = { superadmin:'primary', admin:'info', hr:'success', manager:'warning', accountant:'secondary', employee:'secondary' };
 
@@ -57,9 +74,17 @@ export default function ProfilePage() {
       </div>
 
       <div className="card" style={{ marginBottom:20, padding:24 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:20 }}>
-          <div className="avatar" style={{ width:72, height:72, fontSize:28, fontWeight:800 }}>{initials}</div>
-          <div>
+        <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative' }}>
+            <div className="avatar" style={{ width:80, height:80, fontSize:32, fontWeight:800, overflow: 'hidden' }}>
+              {avatarUrl ? <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
+            </div>
+            <label className="avatar-upload-btn" title="Change Photo">
+              <input type="file" hidden accept="image/*" onChange={handleAvatarChange} disabled={saving} />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </label>
+          </div>
+          <div style={{ flex: 1 }}>
             <h2 style={{ fontSize:20, fontWeight:700 }}>{user?.firstName} {user?.lastName}</h2>
             <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:2 }}>{user?.email}</div>
             <div style={{ marginTop:8 }}>
@@ -68,6 +93,25 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+        <style jsx>{`
+          .avatar-upload-btn {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid white;
+            transition: all 0.2s;
+          }
+          .avatar-upload-btn:hover { background: var(--primary-dark, #4338ca); transform: scale(1.1); }
+        `}</style>
       </div>
 
       <div className="tabs">

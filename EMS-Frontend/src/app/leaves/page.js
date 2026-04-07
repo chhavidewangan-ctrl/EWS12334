@@ -56,6 +56,16 @@ export default function LeavesPage() {
     );
   };
 
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    return `${baseUrl}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+  };
+
+  const statusColor = (s) => ({ approved: 'success', rejected: 'danger', pending: 'warning', cancelled: 'secondary' }[s] || 'secondary');
+
   const fetchLeaves = useCallback(async () => {
     setLoading(true);
     try {
@@ -79,10 +89,6 @@ export default function LeavesPage() {
   };
 
   useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
-
-
-
-
 
   const [viewLeave, setViewLeave] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
@@ -149,8 +155,6 @@ export default function LeavesPage() {
     });
   };
 
-  const statusColor = (s) => ({ approved: 'success', rejected: 'danger', pending: 'warning', cancelled: 'secondary' }[s] || 'secondary');
-
   return (
     <div>
       <div className="page-header">
@@ -199,9 +203,13 @@ export default function LeavesPage() {
               ) : leaves.map(l => (
                 <tr key={l._id}>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div className="avatar" style={{ width: 30, height: 30, fontSize: 11 }}>
-                        {l.employee?.user?.firstName?.[0]}{l.employee?.user?.lastName?.[0]}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, overflow:'hidden', border:'1px solid var(--border)' }}>
+                        {getImageUrl(l.employee?.user?.avatar || l.employee?.profilePhoto) ? (
+                          <img src={getImageUrl(l.employee?.user?.avatar || l.employee?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        ) : (
+                          <>{l.employee?.user?.firstName?.[0]}{l.employee?.user?.lastName?.[0]}</>
+                        )}
                       </div>
                       <div>
                         <div style={{ fontWeight: 500 }}>{l.employee?.user?.firstName} {l.employee?.user?.lastName}</div>
@@ -357,8 +365,12 @@ export default function LeavesPage() {
                 div::-webkit-scrollbar { display: none; }
               `}</style>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <div className="avatar" style={{ width: 44, height: 44 }}>
-                  {viewLeave.employee?.user?.firstName?.[0]}{viewLeave.employee?.user?.lastName?.[0]}
+                <div className="avatar" style={{ width: 44, height: 44, overflow:'hidden', border:'2px solid var(--border)' }}>
+                  {getImageUrl(viewLeave.employee?.user?.avatar || viewLeave.employee?.profilePhoto) ? (
+                    <img src={getImageUrl(viewLeave.employee?.user?.avatar || viewLeave.employee?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  ) : (
+                    <>{viewLeave.employee?.user?.firstName?.[0]}{viewLeave.employee?.user?.lastName?.[0]}</>
+                  )}
                 </div>
                 <div>
                   <h3 style={{ fontSize: 16, margin: 0 }}>{viewLeave.employee?.user?.firstName} {viewLeave.employee?.user?.lastName}</h3>

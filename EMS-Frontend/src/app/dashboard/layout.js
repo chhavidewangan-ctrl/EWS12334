@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '../../context/AuthContext';
 import { ThemeProvider, useTheme } from '../../context/ThemeContext';
-import { systemAPI } from '../../services/api';
+import { systemAPI, API_URL } from '../../services/api';
 
 // --- Icons (inline SVG helpers) ---
 const Icon = ({ path, size = 18 }) => (
@@ -172,6 +172,13 @@ function Navbar({ onToggleSidebar, collapsed }) {
 
   const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() : 'U';
 
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${API_URL}/${cleanPath}`;
+  };
+
   const unreadNotifications = notifications.filter(n => !n.isRead);
 
   return (
@@ -228,8 +235,10 @@ function Navbar({ onToggleSidebar, collapsed }) {
         </div>
 
         <div className="dropdown">
-          <div className="avatar" onClick={() => { setShowUser(!showUser); setShowNotif(false); }}>
-            {initials}
+          <div className="avatar" onClick={() => { setShowUser(!showUser); setShowNotif(false); }} style={{ overflow: 'hidden' }}>
+            {getImageUrl(user?.avatar) ? (
+              <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : initials}
           </div>
           {showUser && (
             <div className="dropdown-menu">

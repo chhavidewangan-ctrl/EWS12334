@@ -33,6 +33,7 @@ export default function EmployeesPage() {
   const [viewEmp, setViewEmp] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [confirm, setConfirm] = useState({ show: false, msg: '', onConfirm: null, id: null });
+  const [showIdCard, setShowIdCard] = useState(null);
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgRecipient, setMsgRecipient] = useState(null);
   const [msgForm, setMsgForm] = useState({ title: '', message: '' });
@@ -44,6 +45,13 @@ export default function EmployeesPage() {
   const showToast = (msg, type = 'success') => {
     setToast({ show: true, msg, type });
     setTimeout(() => setToast({ show: false, msg: '', type: 'success' }), 3000);
+  };
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${API_URL}/${cleanPath}`;
   };
 
   const askConfirm = (msg, onConfirm) => {
@@ -270,8 +278,8 @@ export default function EmployeesPage() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div className="avatar" style={{ width: 34, height: 34, fontSize: 12, overflow: 'hidden' }}>
-                        {emp.user?.avatar || emp.profilePhoto ? (
-                          <img src={`${API_URL}${emp.user?.avatar || emp.profilePhoto}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {getImageUrl(emp.user?.avatar || emp.profilePhoto) ? (
+                          <img src={getImageUrl(emp.user?.avatar || emp.profilePhoto)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <>{emp.user?.firstName?.[0]}{emp.user?.lastName?.[0]}</>
                         )}
@@ -543,8 +551,8 @@ export default function EmployeesPage() {
             <div className="modal-header" style={{ justifyContent:'space-between', alignItems:'flex-start' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div className="avatar" style={{ width: 44, height: 44, background:'var(--primary)', color:'white', overflow: 'hidden' }}>
-                  {viewEmp.user?.avatar || viewEmp.profilePhoto ? (
-                    <img src={`${API_URL}${viewEmp.user?.avatar || viewEmp.profilePhoto}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {getImageUrl(viewEmp.user?.avatar || viewEmp.profilePhoto) ? (
+                    <img src={getImageUrl(viewEmp.user?.avatar || viewEmp.profilePhoto)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <>{viewEmp.user?.firstName?.[0]}{viewEmp.user?.lastName?.[0]}</>
                   )}
@@ -623,6 +631,36 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
+              {viewEmp.documents && viewEmp.documents.length > 0 && (
+                <div className="detail-section" style={{ marginTop: 24 }}>
+                  <h4 style={{ marginBottom: 12, fontSize: 11, textTransform:'uppercase', letterSpacing:'0.05em', color: 'var(--primary)', opacity:0.8 }}>Uploaded Documents ({viewEmp.documents.length})</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {viewEmp.documents.map((doc, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: 'var(--bg-alt)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 32, height: 32, background: 'var(--primary-soft)', color: 'var(--primary)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 500 }}>{doc.name || doc.type?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Document'}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Type: {doc.type?.replace('_', ' ')}</div>
+                          </div>
+                        </div>
+                        <a 
+                          href={`${API_URL}/${doc.url}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-sm" 
+                          style={{ padding: '4px 10px', fontSize: 11, background: 'var(--primary)', color: 'white', border: 'none' }}
+                        >
+                          View
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="detail-section" style={{ marginTop: 24, padding:16, borderRadius:12, background:'var(--bg-alt)', border:'1px solid var(--border)' }}>
                 <h4 style={{ marginBottom: 16, fontSize: 11, textTransform:'uppercase', letterSpacing:'0.05em', color: 'var(--primary)', opacity:0.8 }}>Update Status</h4>
                 <div style={{ display:'flex', gap:10 }}>
@@ -646,6 +684,16 @@ export default function EmployeesPage() {
                   )}
                   <button className="btn btn-primary" style={{ flex:1, fontSize:12, height:36, padding:'0 12px' }} onClick={() => setViewEmp(null)}>
                     Close
+                  </button>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ width:'100%', fontSize:12, height:36, display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'var(--bg-card)', border:'1px solid var(--primary)', color:'var(--primary)' }}
+                    onClick={() => setShowIdCard(viewEmp)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><circle cx="9" cy="10" r="3"/><path d="M16 14h4m-4-4h4m-4-4h4M9 13c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/></svg>
+                    Generate Digital ID Card
                   </button>
                 </div>
               </div>
@@ -726,6 +774,229 @@ export default function EmployeesPage() {
         </div>
       )}
 
+      {/* Digital ID Card Modal */}
+      {showIdCard && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowIdCard(null)} style={{ background: 'rgba(0,0,0,0.85)', zIndex: 20000 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: '100%' }}>
+            
+            <div id="id-card-capture" className="id-card-v3">
+              <div className="id-v3-inner">
+                {/* Left Section - Identity Column */}
+                <div className="id-v3-left">
+                  <div className="id-v3-photo-ring">
+                    {getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto) ? (
+                      <img src={getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto)} alt="Member" className="id-v3-img" />
+                    ) : (
+                      <div className="id-v3-initials">{(showIdCard.user?.firstName?.[0]||'E')}</div>
+                    )}
+                  </div>
+                  <div className="id-v3-qr-wrap">
+                    <div className="id-v3-qr-inner">
+                      {Array.from({length:16}).map((_,i) => <div key={i} className="qr-dot" style={{ opacity: Math.random() > 0.3 ? 1 : 0.2 }}></div>)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Section - Data Column */}
+                <div className="id-v3-right">
+                  <div className="id-v3-header">
+                    <div className="id-v3-logo-badge">{(JSON.parse(localStorage.getItem('ems_user'))?.company?.name?.[0] || 'E')}</div>
+                    <div className="id-v3-company-group">
+                      <h3 className="id-v3-company-name">{JSON.parse(localStorage.getItem('ems_user'))?.company?.name || 'TSRIJANALI IT SERVICES'}</h3>
+                      <p className="id-v3-subtitle">Corporate Access Identity</p>
+                    </div>
+                  </div>
+
+                  <div className="id-v3-member-block">
+                    <h2 className="id-v3-name">{showIdCard.user?.firstName} {showIdCard.user?.lastName}</h2>
+                    <p className="id-v3-desig">{showIdCard.designation}</p>
+                  </div>
+
+                  <div className="id-v3-info-grid">
+                    <div className="id-v3-item">
+                      <span className="id-v3-label">ID NO.</span>
+                      <span className="id-v3-value">{showIdCard.employeeId}</span>
+                    </div>
+                    <div className="id-v3-item">
+                      <span className="id-v3-label">ROLE</span>
+                      <span className="id-v3-value" style={{ textTransform:'capitalize' }}>{showIdCard.user?.role}</span>
+                    </div>
+                    <div className="id-v3-item">
+                      <span className="id-v3-label">DEPT.</span>
+                      <span className="id-v3-value">{showIdCard.department}</span>
+                    </div>
+                    <div className="id-v3-item">
+                      <span className="id-v3-label">JOINED</span>
+                      <span className="id-v3-value">{new Date(showIdCard.joiningDate).toLocaleDateString('en-IN', { month:'short', year:'numeric' })}</span>
+                    </div>
+                  </div>
+
+                  <div className="id-v3-footer">
+                    <div className="id-v3-security">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ opacity:0.6 }}><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+                      <span>Secure Digitally Verified</span>
+                    </div>
+                    <div className="id-v3-accent-dots"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button className="btn btn-secondary" onClick={() => setShowIdCard(null)}>Close</button>
+              <button className="btn btn-primary" onClick={() => window.print()}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8 }}><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2m-2 4H8v-4h8v4z"/></svg>
+                Print ID Card
+              </button>
+            </div>
+          </div>
+
+          <style jsx>{`
+            .id-card-v3 {
+              width: 520px;
+              height: 320px;
+              background: #0f172a;
+              border-radius: 28px;
+              padding: 1px;
+              position: relative;
+              overflow: hidden;
+              color: white;
+              font-family: 'Inter', system-ui, sans-serif;
+              box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+            }
+            .id-v3-inner {
+              width: 100%;
+              height: 100%;
+              background: radial-gradient(circle at top right, rgba(99,102,241,0.15), transparent 60%),
+                          radial-gradient(circle at bottom left, rgba(16,185,129,0.05), transparent 60%),
+                          #0f172a;
+              border-radius: 27px;
+              display: flex;
+              position: relative;
+              z-index: 1;
+            }
+            .id-v3-left {
+              width: 170px;
+              background: rgba(255,255,255,0.02);
+              border-right: 1px solid rgba(255,255,255,0.05);
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              gap: 24px;
+            }
+            .id-v3-photo-ring {
+              width: 124px;
+              height: 124px;
+              border-radius: 24px;
+              background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+              padding: 3px;
+              box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
+            }
+            .id-v3-img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              border-radius: 21px;
+              border: 2px solid #0f172a;
+            }
+            .id-v3-initials {
+              width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+              font-size: 52px; font-weight: 900; color: rgba(255,255,255,0.1);
+            }
+            .id-v3-qr-wrap {
+              background: rgba(255,255,255,0.05);
+              padding: 10px;
+              border-radius: 12px;
+              border: 1px solid rgba(255,255,255,0.1);
+            }
+            .id-v3-qr-inner {
+              display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+            }
+            .qr-dot { width: 5px; height: 5px; background: white; border-radius: 1px; }
+
+            .id-v3-right {
+              flex: 1;
+              padding: 32px 36px;
+              display: flex;
+              flex-direction: column;
+            }
+            .id-v3-header {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+              margin-bottom: 28px;
+            }
+            .id-v3-logo-badge {
+              width: 36px;
+              height: 36px;
+              background: linear-gradient(135deg, #6366f1, #10b981);
+              border-radius: 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: 900;
+              font-size: 16px;
+              color: white;
+            }
+            .id-v3-company-name {
+              font-size: 15px;
+              font-weight: 800;
+              margin: 0;
+              color: #f8fafc;
+              letter-spacing: -0.01em;
+            }
+            .id-v3-subtitle {
+              font-size: 9px;
+              text-transform: uppercase;
+              color: #94a3b8;
+              letter-spacing: 0.12em;
+              font-weight: 700;
+              margin: 3px 0 0;
+            }
+            .id-v3-member-block { margin-bottom: 28px; }
+            .id-v3-name { font-size: 26px; font-weight: 800; margin: 0; color: white; letter-spacing: -0.03em; }
+            .id-v3-desig { font-size: 13px; color: #6366f1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+            
+            .id-v3-info-grid {
+              display: grid;
+              grid-template-columns: 1fr 1.2fr;
+              gap: 16px 24px;
+            }
+            .id-v3-item { display: flex; flex-direction: column; gap: 3px; }
+            .id-v3-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
+            .id-v3-value { font-size: 12px; font-weight: 600; color: #cbd5e1; }
+
+            .id-v3-footer {
+              margin-top: auto;
+              padding-top: 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              border-top: 1px solid rgba(255,255,255,0.05);
+            }
+            .id-v3-security { display: flex; align-items: center; gap: 6px; font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+            .id-v3-accent-dots { position: absolute; bottom: 32px; right: 36px; width: 40px; height: 4px; border-radius: 10px; background: linear-gradient(90deg, #6366f1, transparent); }
+
+            @media print {
+              body * { visibility: hidden; }
+              #id-card-capture, #id-card-capture * { visibility: visible; }
+              #id-card-capture { 
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                border: none;
+                box-shadow: none;
+                width: 520px; height: 320px;
+              }
+              .modal-overlay { background: white !important; }
+            }
+          `}</style>
+
+
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,14 @@ const STATUS_COLS = [
 
 const PRIORITY_C = { low: 'secondary', medium: 'info', high: 'warning', critical: 'danger' };
 
+const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  return `${baseUrl}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+};
+
 function Icon({ path, size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -318,9 +326,13 @@ export default function TasksPage() {
                               )}
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                                 {task.assignedTo?.user ? (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
-                                    <div className="avatar" style={{ width: 20, height: 20, fontSize: 8 }}>
-                                      {task.assignedTo.user.firstName?.[0]}{task.assignedTo.user.lastName?.[0]}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                                    <div className="avatar" style={{ width: 22, height: 22, fontSize: 9, overflow:'hidden', border:'1px solid var(--border)' }}>
+                                      {getImageUrl(task.assignedTo?.user?.avatar || task.assignedTo?.profilePhoto) ? (
+                                        <img src={getImageUrl(task.assignedTo?.user?.avatar || task.assignedTo?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                      ) : (
+                                        <>{task.assignedTo.user.firstName?.[0]}{task.assignedTo.user.lastName?.[0]}</>
+                                      )}
                                     </div>
                                     {task.assignedTo.user.firstName}
                                   </div>
@@ -403,9 +415,13 @@ export default function TasksPage() {
                     <td style={{ fontSize: 12, color: 'var(--primary)' }}>{task.project?.name || '-'}</td>
                     <td>
                       {task.assignedTo?.user ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div className="avatar" style={{ width: 24, height: 24, fontSize: 9 }}>
-                            {task.assignedTo.user.firstName?.[0]}{task.assignedTo.user.lastName?.[0]}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div className="avatar" style={{ width: 28, height: 28, fontSize: 10, overflow:'hidden', border:'1px solid var(--border)' }}>
+                            {getImageUrl(task.assignedTo?.user?.avatar || task.assignedTo?.profilePhoto) ? (
+                              <img src={getImageUrl(task.assignedTo?.user?.avatar || task.assignedTo?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                            ) : (
+                              <>{task.assignedTo.user.firstName?.[0]}{task.assignedTo.user.lastName?.[0]}</>
+                            )}
                           </div>
                           {task.assignedTo.user.firstName} {task.assignedTo.user.lastName}
                         </div>

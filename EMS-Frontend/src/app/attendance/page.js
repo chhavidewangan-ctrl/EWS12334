@@ -139,6 +139,14 @@ export default function AttendancePage() {
     finally { setCheckingOut(false); }
   };
 
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    return `${baseUrl}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+  };
+
   const statusColor = (s) => ({ present: 'success', absent: 'danger', late: 'warning', half_day: 'info', on_leave: 'primary', holiday: 'secondary', weekend: 'secondary' }[s] || 'secondary');
 
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-';
@@ -246,11 +254,18 @@ export default function AttendancePage() {
               ) : attendance.map(a => (
                 <tr key={a._id}>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div className="avatar" style={{ width: 30, height: 30, fontSize: 11 }}>
-                        {a.employee?.user?.firstName?.[0]}{a.employee?.user?.lastName?.[0]}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, background: 'var(--primary-light)', color: 'var(--primary)', flexShrink: 0, border: '1px solid var(--border-color)' }}>
+                         {getImageUrl(a.employee?.user?.avatar || a.employee?.profilePhoto) ? (
+                          <img src={getImageUrl(a.employee?.user?.avatar || a.employee?.profilePhoto)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                        ) : (
+                          <>{a.employee?.user?.firstName?.[0]}{a.employee?.user?.lastName?.[0]}</>
+                        )}
                       </div>
-                      <span>{a.employee?.user?.firstName} {a.employee?.user?.lastName}</span>
+                      <div style={{ display:'flex', flexDirection:'column' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{a.employee?.user?.firstName} {a.employee?.user?.lastName}</span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{a.employee?.employeeId}</span>
+                      </div>
                     </div>
                   </td>
                   <td>{new Date(a.date).toLocaleDateString('en-IN')}</td>

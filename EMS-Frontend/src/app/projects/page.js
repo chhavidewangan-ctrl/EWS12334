@@ -1,14 +1,22 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { projectAPI } from '../../services/api';
+import { projectAPI, employeeAPI, erpAPI, API_URL } from '../../services/api';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 
 const PRIORITY_COLORS = { low: 'secondary', medium: 'info', high: 'warning', critical: 'danger' };
 const STATUS_COLORS = { planning: 'secondary', active: 'success', on_hold: 'warning', completed: 'info', cancelled: 'danger' };
 
+const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  return `${baseUrl}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+};
+
 export default function ProjectsPage() {
-  const { isManager, isAdmin, isSuperAdmin } = useAuth();
+  const { isManager, isAdmin, isSuperAdmin, isHR, hasRole } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -18,7 +26,9 @@ export default function ProjectsPage() {
   const [showModal, setShowModal] = useState(false);
   const [viewProject, setViewProject] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '' });
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [allClients, setAllClients] = useState([]);
+  const [form, setForm] = useState({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '', team: [], client: '', projectManager: '' });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [confirm, setConfirm] = useState({ show: false, msg: '', onConfirm: null, id: null });
@@ -37,11 +47,18 @@ export default function ProjectsPage() {
     } catch { } finally { setLoading(false); }
   }, [page, status, search]);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => {
+    fetchProjects();
+    employeeAPI.getAll({ limit: 1000 }).then(res => setAllEmployees(res.data.employees || []));
+    erpAPI.getClients({ limit: 1000 }).then(res => setAllClients(res.data.clients || []));
+  }, [fetchProjects]);
 
   const openEdit = (p) => {
     setForm({
       ...p,
+      client: p.client?._id || p.client || '',
+      projectManager: p.projectManager?._id || p.projectManager || '',
+      team: p.team?.map(m => m._id) || [],
       startDate: p.startDate ? new Date(p.startDate).toISOString().split('T')[0] : '',
       endDate: p.endDate ? new Date(p.endDate).toISOString().split('T')[0] : ''
     });
@@ -63,7 +80,7 @@ export default function ProjectsPage() {
       }
       setShowModal(false);
       setIsEdit(false);
-      setForm({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '' });
+      setForm({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '', team: [], client: '', projectManager: '' });
       fetchProjects();
     } catch (err) { showToast(err.response?.data?.message || 'Failed', 'danger'); }
     finally { setSaving(false); }
@@ -90,7 +107,7 @@ export default function ProjectsPage() {
           <h1>Projects</h1>
           <p>Manage projects and track progress</p>
         </div>
-        {(isManager() && !isSuperAdmin()) && (
+        {(isManager() || isAdmin()) && !isHR() && (
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
             New Project
@@ -141,15 +158,32 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-                {p.startDate && <div>Start: {new Date(p.startDate).toLocaleDateString('en-IN')}</div>}
-                {p.endDate && <div>End: {new Date(p.endDate).toLocaleDateString('en-IN')}</div>}
+                {p.startDate && <div>Start: {new Date(p.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>}
+                {p.endDate && <div>End: {new Date(p.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>}
                 {p.budget > 0 && <div>Budget: ₹{p.budget.toLocaleString('en-IN')}</div>}
-                <div>Team: {p.team?.length || 0} members</div>
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <span>Team:</span>
+                  <div style={{ display:'flex', marginLeft:4 }}>
+                    {p.team?.slice(0, 4).map((m, i) => (
+                      <div key={i} className="avatar" style={{ width:20, height:20, fontSize:8, marginLeft: i===0?0:-8, border:'2px solid white', boxShadow:'0 2px 4px rgba(0,0,0,0.1)', overflow:'hidden' }}>
+                        {getImageUrl(m.user?.avatar || m.profilePhoto) ? (
+                          <img src={getImageUrl(m.user?.avatar || m.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        ) : (m.user?.firstName?.[0] || 'M')}
+                      </div>
+                    ))}
+                    {p.team?.length > 4 && <div style={{ fontSize:10, marginLeft:4, color:'var(--text-muted)', display:'flex', alignItems:'center' }}>+{p.team.length - 4}</div>}
+                    {(!p.team || p.team.length === 0) && <span style={{ fontSize:10, color:'var(--text-muted)', marginLeft:2 }}>0</span>}
+                  </div>
+                </div>
               </div>
               {p.projectManager && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, fontSize: 12 }}>
-                  <div className="avatar" style={{ width: 22, height: 22, fontSize: 9 }}>
-                    {p.projectManager?.user?.firstName?.[0]}{p.projectManager?.user?.lastName?.[0]}
+                  <div className="avatar" style={{ width: 22, height: 22, fontSize: 9, overflow:'hidden' }}>
+                    {getImageUrl(p.projectManager?.user?.avatar || p.projectManager?.profilePhoto) ? (
+                      <img src={getImageUrl(p.projectManager?.user?.avatar || p.projectManager?.profilePhoto)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    ) : (
+                      <>{p.projectManager?.user?.firstName?.[0]}{p.projectManager?.user?.lastName?.[0]}</>
+                    )}
                   </div>
                   <span style={{ color: 'var(--text-muted)' }}>{p.projectManager?.user?.firstName} {p.projectManager?.user?.lastName}</span>
                 </div>
@@ -159,13 +193,13 @@ export default function ProjectsPage() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                   View
                 </button>
-                {(isManager() && !isSuperAdmin()) && (
+                {(isManager() || isAdmin()) && !isHR() && (
                   <button onClick={() => openEdit(p)} className="btn btn-secondary btn-sm" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                     Edit
                   </button>
                 )}
-                {isAdmin() && !isSuperAdmin() && (
+                {hasRole(['superadmin', 'admin']) && (
                   <button onClick={() => handleDelete(p._id)} className="btn btn-danger btn-sm" style={{ padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-6 5v6m4-6v6" /></svg>
                   </button>
@@ -191,7 +225,7 @@ export default function ProjectsPage() {
           <div className="modal modal-md" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="modal-header">
               <h2>{isEdit ? 'Edit Project' : 'Create New Project'}</h2>
-              <button className="icon-btn" onClick={() => { setShowModal(false); setIsEdit(false); setForm({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '' }); }}>
+              <button className="icon-btn" onClick={() => { setShowModal(false); setIsEdit(false); setForm({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '', team: [], client: '', projectManager: '' }); }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -206,6 +240,7 @@ export default function ProjectsPage() {
                   input::-webkit-outer-spin-button,
                   input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
                   input[type=number] { -moz-appearance: textfield; }
+                  .team-chip { display: flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--primary-soft); color: var(--primary); border-radius: 4px; font-size: 11px; }
                 `}</style>
                 <div className="form-group">
                   <label className="form-label">Project Name *</label>
@@ -213,7 +248,60 @@ export default function ProjectsPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Description</label>
-                  <textarea className="form-control" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                  <textarea className="form-control" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                </div>
+                <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <div className="form-group">
+                    <label className="form-label">Client</label>
+                    <select className="form-control" value={form.client} onChange={e => setForm({ ...form, client: e.target.value })}>
+                      <option value="">Select Client</option>
+                      {allClients.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Project Manager (Managers Only)</label>
+                    <select className="form-control" value={form.projectManager} onChange={e => setForm({ ...form, projectManager: e.target.value })}>
+                      <option value="">Select PM</option>
+                      {allEmployees.filter(e => e.user?.role === 'manager').map(e => (
+                        <option key={e._id} value={e._id}>{e.user?.firstName} {e.user?.lastName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Team Members (Employees Only)</label>
+                  <div style={{ padding: 12, border: '1px solid var(--border)', borderRadius: 8, maxHeight: 154, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
+                    {allEmployees.filter(e => e.user?.role === 'employee').map(emp => {
+                      const isSelected = form.team.includes(emp._id);
+                      return (
+                        <div 
+                          key={emp._id} 
+                          onClick={() => {
+                            const newTeam = isSelected 
+                              ? form.team.filter(id => id !== emp._id) 
+                              : [...form.team, emp._id];
+                            setForm({ ...form, team: newTeam });
+                          }}
+                          style={{ 
+                            padding: '6px 8px', 
+                            fontSize: 11, 
+                            borderRadius: 6, 
+                            border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                            background: isSelected ? 'var(--primary-soft)' : 'var(--bg-alt)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}
+                        >
+                          <div className="avatar" style={{ width: 16, height: 16, fontSize: 8 }}>{emp.user?.firstName?.[0]}</div>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.user?.firstName} {emp.user?.lastName?.[0]}.</span>
+                          {isSelected && <span style={{ marginLeft: 'auto', color: 'var(--primary)' }}>✓</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
                 <div className="form-grid">
                   <div className="form-group">
@@ -243,7 +331,7 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setIsEdit(false); setForm({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '' }); }}>Cancel</button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setIsEdit(false); setForm({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', budget: '', team: [], client: '', projectManager: '' }); }}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? <><div className="loading-spinner"></div> Saving...</> : (isEdit ? 'Update Project' : 'Create Project')}
                 </button>
@@ -295,11 +383,11 @@ export default function ProjectsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, padding: 16, border: '1px solid var(--border)', borderRadius: 12 }}>
                   <div>
                     <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)' }}>START DATE</span>
-                    <span style={{ fontWeight: 600 }}>{viewProject.startDate ? new Date(viewProject.startDate).toLocaleDateString('en-IN') : 'N/A'}</span>
+                    <span style={{ fontWeight: 600 }}>{viewProject.startDate ? new Date(viewProject.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</span>
                   </div>
                   <div>
                     <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)' }}>END DATE</span>
-                    <span style={{ fontWeight: 600 }}>{viewProject.endDate ? new Date(viewProject.endDate).toLocaleDateString('en-IN') : 'N/A'}</span>
+                    <span style={{ fontWeight: 600 }}>{viewProject.endDate ? new Date(viewProject.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</span>
                   </div>
                   <div style={{ gridColumn: '1 / span 2' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 6 }}>
@@ -310,11 +398,33 @@ export default function ProjectsPage() {
                   </div>
                 </div>
               </div>
+
+              {viewProject.team && viewProject.team.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ fontSize: 11, color: 'var(--primary)', marginBottom: 12, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Project Team ({viewProject.team.length})</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+                    {viewProject.team.map((member, idx) => {
+                      const name = member.user ? `${member.user.firstName} ${member.user.lastName}` : (member.firstName ? `${member.firstName} ${member.lastName}` : 'Team Member');
+                      const initials = member.user ? `${member.user.firstName?.[0]||''}${member.user.lastName?.[0]||''}` : (member.firstName ? `${member.firstName?.[0]||''}${member.lastName?.[0]||''}` : 'M');
+                      return (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: 'var(--bg-alt)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                          <div className="avatar" style={{ width: 28, height: 28, fontSize: 10, overflow:'hidden' }}>
+                            {getImageUrl(member.user?.avatar || member.profilePhoto) ? (
+                              <img src={getImageUrl(member.user?.avatar || member.profilePhoto)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : initials.toUpperCase()}
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <button className="btn btn-secondary" onClick={() => setViewProject(null)}>Close View</button>
-              {(isManager() && !isSuperAdmin()) && (
+              {(isManager() || isAdmin()) && !isHR() && (
                 <button className="btn btn-primary" onClick={() => openEdit(viewProject)}>Edit Project</button>
               )}
             </div>
