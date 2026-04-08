@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
-import { authAPI, API_URL } from '../../services/api';
+import { authAPI, getImageUrl } from '../../services/api';
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -64,7 +65,7 @@ export default function ProfilePage() {
   };
 
   const initials = user ? `${user.firstName?.[0]||''}${user.lastName?.[0]||''}`.toUpperCase() : 'U';
-  const avatarUrl = user?.avatar ? `${API_URL}/${user.avatar}` : null;
+  const avatarUrl = getImageUrl(user?.avatar);
 
   const roleColors = { superadmin:'primary', admin:'info', hr:'success', manager:'warning', accountant:'secondary', employee:'secondary' };
 
@@ -240,6 +241,11 @@ export default function ProfilePage() {
             <div className="form-group">
               <label className="form-label">Current Password *</label>
               <input type="password" className="form-control" required value={pwForm.currentPassword} onChange={e=>setPwForm({...pwForm,currentPassword:e.target.value})} />
+              <div style={{ marginTop: 4, textAlign: 'right' }}>
+                <Link href="/forgot-password" style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>
+                  Forgot current password?
+                </Link>
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">New Password *</label>

@@ -43,6 +43,7 @@ exports.authorize = (...roles) => {
 
 // Company check middleware
 exports.companyCheck = (req, res, next) => {
+  const isSuperAdmin = req.user.role === 'superadmin';
   const isAdminRole = ['superadmin', 'admin'].includes(req.user.role);
 
   if (!isAdminRole && !req.user.company) {
@@ -50,7 +51,10 @@ exports.companyCheck = (req, res, next) => {
   }
 
   // Set companyId for scoping
-  if (req.user.company) {
+  // Superadmin can override companyId via header to view data of other companies
+  if (isSuperAdmin && req.headers['x-company-id']) {
+    req.companyId = req.headers['x-company-id'];
+  } else if (req.user.company) {
     req.companyId = req.user.company;
   }
   

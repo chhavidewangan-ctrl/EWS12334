@@ -3,16 +3,28 @@ import axios from 'axios';
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 export const API_URL = BASE_URL.replace('/api', '');
 
+export const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  // Ensure we don't have double slashes if API_URL ends with one
+  const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  return `${base}/${cleanPath}`;
+};
+
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Request interceptor — attach token
+// Request interceptor — attach token and company ID
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('ems_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    const companyId = localStorage.getItem('ems_selected_company');
+    if (companyId) config.headers['x-company-id'] = companyId;
   }
   return config;
 }, (error) => Promise.reject(error));

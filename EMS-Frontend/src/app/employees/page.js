@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { employeeAPI, systemAPI, API_URL } from '../../services/api';
+import { employeeAPI, systemAPI, API_URL, getImageUrl } from '../../services/api';
 
 const DEPT_OPTIONS = ['Engineering','HR','Finance','Marketing','Sales','Operations','Design','Management','Support','IT'];
 const STATUS_OPTIONS = ['active','inactive','on_notice','terminated','resigned'];
@@ -49,12 +49,6 @@ export default function EmployeesPage() {
     setTimeout(() => setToast({ show: false, msg: '', type: 'success' }), 3000);
   };
 
-  const getImageUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    return `${API_URL}/${cleanPath}`;
-  };
 
   const askConfirm = (msg, onConfirm) => {
     setConfirm({ show: true, msg, onConfirm });

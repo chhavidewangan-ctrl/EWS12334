@@ -183,23 +183,23 @@ exports.login = async (req, res) => {
 // @route POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, role, company, branch } = req.body;
+    const { email, password, firstName, lastName, role, branch } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    let finalCompany = company || req.user?.company;
-    if (!finalCompany) {
-      const fallbackCompany = await Company.findOne();
-      if (fallbackCompany) finalCompany = fallbackCompany._id;
+    // Force the company to be the same as the admin's company
+    const finalCompany = req.user.company;
+    if (!finalCompany && req.user.role !== 'superadmin') {
+      return res.status(400).json({ success: false, message: 'Admin must belong to a company to create users.' });
     }
 
     const user = await User.create({
       email, password, firstName, lastName,
       role: role || 'employee',
-      company: finalCompany,
+      company: finalCompany || req.body.company, // Superadmin can still specify
       branch
     });
 

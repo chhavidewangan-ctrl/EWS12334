@@ -11,7 +11,7 @@ const upload = require('../middleware/upload');
 
 router.post('/login', login);
 router.get('/companies-public', getPublicCompanies); // Rename to avoid confusion
-router.post('/register', register);
+router.post('/register', protect, authorize('admin', 'superadmin'), register);
 router.post('/register-company', registerCompany);
 router.get('/me', protect, getMe);
 router.post('/forgotpassword', forgotPassword);

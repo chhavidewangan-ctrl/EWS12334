@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '../../context/AuthContext';
 import { ThemeProvider, useTheme } from '../../context/ThemeContext';
-import { systemAPI, API_URL } from '../../services/api';
+import { getImageUrl, systemAPI, API_URL } from '../../services/api';
 
 // --- Icons (inline SVG helpers) ---
 const Icon = ({ path, size = 18 }) => (
@@ -119,12 +119,37 @@ function Navbar({ onToggleSidebar, collapsed }) {
   const { user, logout, token } = useAuth();
   const { darkMode, toggleTheme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const [showNotif, setShowNotif] = useState(false);
   const [showUser, setShowUser] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(0);
   const [activeNotif, setActiveNotif] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (user?.role === 'superadmin') {
+      systemAPI.getCompaniesPublic().then(res => {
+        setCompanies(res.data.companies || []);
+        const stored = localStorage.getItem('ems_selected_company');
+        setSelectedCompanyId(stored || '');
+      }).catch(() => {});
+    }
+  }, [user]);
+
+  const handleCompanyChange = (e) => {
+    const val = e.target.value;
+    setSelectedCompanyId(val);
+    if (val) {
+      localStorage.setItem('ems_selected_company', val);
+    } else {
+      localStorage.removeItem('ems_selected_company');
+    }
+    // Refresh the page to reload data with new company context
+    window.location.reload();
+  };
 
   useEffect(() => {
     if (user && token) {
@@ -168,17 +193,13 @@ function Navbar({ onToggleSidebar, collapsed }) {
 
   const handleLogout = async () => {
     await logout();
+    localStorage.removeItem('ems_selected_company'); // Clear on logout
     router.replace('/login');
   };
 
   const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() : 'U';
 
-  const getImageUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    return `${API_URL}/${cleanPath}`;
-  };
+
 
   const unreadNotifications = notifications.filter(n => !n.isRead);
 
@@ -195,6 +216,31 @@ function Navbar({ onToggleSidebar, collapsed }) {
       </div>
 
       <div className="navbar-right">
+        {user?.role === 'superadmin' && (
+          <div style={{ 
+            display: 'flex', alignItems: 'center', gap: 10, marginRight: 15,
+            padding: '5px 12px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)',
+            borderRadius: 12, color: 'var(--primary)'
+          }}>
+            <Icon path="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" size={16} />
+            <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>Switch Company:</span>
+            <select 
+              value={selectedCompanyId} 
+              onChange={handleCompanyChange}
+              style={{ 
+                padding: '4px 8px', borderRadius: 8, border: 'none', 
+                fontSize: 12, background: 'transparent', color: 'var(--text-primary)',
+                fontWeight: 600, cursor: 'pointer', outline: 'none'
+              }}
+            >
+              <option value="" style={{ background: 'var(--bg-card)' }}>Global (All Data)</option>
+              {companies.map(c => (
+                <option key={c._id} value={c._id} style={{ background: 'var(--bg-card)' }}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <button className="icon-btn" onClick={toggleTheme} title={darkMode ? 'Light Mode' : 'Dark Mode'}>
           <Icon path={darkMode ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'} size={18} />
         </button>
