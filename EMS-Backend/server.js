@@ -177,8 +177,34 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Create Superadmin if not exists
+const createSuperAdmin = async () => {
+  try {
+    const User = require('./src/models/User');
+    const superadmin = await User.findOne({ role: 'superadmin' });
+    
+    if (!superadmin) {
+      const adminEmail = process.env.SUPERADMIN_EMAIL || 'superadmin@ems.com';
+      const adminPass = process.env.SUPERADMIN_PASSWORD || 'superadmin123';
+      
+      await User.create({
+        firstName: 'System',
+        lastName: 'Superadmin',
+        email: adminEmail,
+        password: adminPass,
+        role: 'superadmin',
+        isActive: true
+      });
+      console.log('✅ Default Superadmin created:', adminEmail);
+    }
+  } catch (err) {
+    console.error('❌ Superadmin creation failed:', err.message);
+  }
+};
+
 // Connect to DB and start server
-connectDB().then(() => {
+connectDB().then(async () => {
+  await createSuperAdmin();
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
     console.log(`📄 API Docs: http://localhost:${PORT}/api/docs`);

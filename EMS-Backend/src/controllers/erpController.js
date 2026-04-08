@@ -174,6 +174,13 @@ exports.getExpenses = async (req, res) => {
   try {
     const query = {};
     if (req.companyId) query.company = req.companyId;
+
+    // SaaS Role-Based Filtering
+    const isAdminView = ['superadmin', 'admin', 'hr', 'manager', 'accountant'].includes(req.user.role);
+    if (!isAdminView) {
+      query.createdBy = req.user.id;
+    }
+
     if (req.query.category) query.category = req.query.category;
     if (req.query.status) query.status = req.query.status;
     if (req.query.startDate && req.query.endDate) {
@@ -182,7 +189,7 @@ exports.getExpenses = async (req, res) => {
     const total = await Expense.countDocuments(query);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const expenses = await Expense.find(query).sort({ date: -1 }).skip((page - 1) * limit).limit(limit);
+    const expenses = await Expense.find(query).populate('createdBy', 'firstName lastName').sort({ date: -1 }).skip((page - 1) * limit).limit(limit);
     const totalAmount = await Expense.aggregate([{ $match: query }, { $group: { _id: null, total: { $sum: '$amount' } } }]);
     res.status(200).json({ success: true, count: expenses.length, total, totalAmount: totalAmount[0]?.total || 0, expenses });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }

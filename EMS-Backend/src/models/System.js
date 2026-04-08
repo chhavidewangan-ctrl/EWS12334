@@ -33,7 +33,8 @@ const companySchema = new mongoose.Schema({
     fromEmail: String,
     fromName: String
   },
-  isActive: { type: Boolean, default: true },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  isActive: { type: Boolean, default: false },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

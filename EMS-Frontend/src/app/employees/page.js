@@ -21,6 +21,7 @@ export default function EmployeesPage() {
     firstName: '', lastName: '', email: '', password: '', employeeId: '', department: '', designation: '', 
     joiningDate: '', role: 'employee', employmentType: 'full_time', company: '',
     documents: { aadharNumber: '', panNumber: '', voterIdNumber: '', drivingLicense: '', passportNumber: '' },
+    bankDetails: { bankName: '', accountNumber: '', ifscCode: '', branchName: '', accountType: 'savings' },
     leaveBalance: { casual: 12, sick: 12, earned: 15, compensatory: 0 }
   };
   const [form, setForm] = useState(INITIAL_FORM);
@@ -34,6 +35,7 @@ export default function EmployeesPage() {
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [confirm, setConfirm] = useState({ show: false, msg: '', onConfirm: null, id: null });
   const [showIdCard, setShowIdCard] = useState(null);
+  const [idCardOrientation, setIdCardOrientation] = useState('horizontal'); // 'horizontal' or 'vertical'
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgRecipient, setMsgRecipient] = useState(null);
   const [msgForm, setMsgForm] = useState({ title: '', message: '' });
@@ -144,6 +146,7 @@ export default function EmployeesPage() {
       joiningDate: emp.joiningDate ? new Date(emp.joiningDate).toISOString().split('T')[0] : '',
       leaveBalance: emp.leaveBalance || { casual: 12, sick: 12, earned: 15, compensatory: 0 },
       documents: emp.documents || INITIAL_FORM.documents,
+      bankDetails: emp.bankDetails || INITIAL_FORM.bankDetails,
       salaryInfo: emp.salaryInfo || { basicSalary: 0, hra: 0, specialAllowance: 0 }
     });
     setIdProofFile(null);
@@ -511,6 +514,31 @@ export default function EmployeesPage() {
                   </div>
                 </div>
 
+                <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                  <h4 style={{ marginBottom: 16, fontSize: 11, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.05em' }}>Bank Details</h4>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label className="form-label">Bank Name</label>
+                      <input className="form-control" value={form.bankDetails?.bankName || ''} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, bankName: e.target.value}})} placeholder="e.g. HDFC Bank" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Account Number</label>
+                      <input className="form-control" value={form.bankDetails?.accountNumber || ''} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, accountNumber: e.target.value}})} placeholder="000000000000" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">IFSC Code</label>
+                      <input className="form-control" value={form.bankDetails?.ifscCode || ''} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, ifscCode: e.target.value}})} placeholder="HDFC0001234" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Account Type</label>
+                      <select className="form-control" value={form.bankDetails?.accountType || 'savings'} onChange={e => setForm({...form, bankDetails: {...form.bankDetails, accountType: e.target.value}})}>
+                        <option value="savings">Savings</option>
+                        <option value="current">Current</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 {isEdit && (
                   <div style={{ marginTop: 24 }}>
                     <h4 style={{ marginBottom: 16, fontSize: 11, textTransform: 'uppercase', color: 'var(--primary)' }}>Leave Balance (Days)</h4>
@@ -630,6 +658,8 @@ export default function EmployeesPage() {
                   ))}
                 </div>
               </div>
+
+
 
               {viewEmp.documents && viewEmp.documents.length > 0 && (
                 <div className="detail-section" style={{ marginTop: 24 }}>
@@ -776,225 +806,264 @@ export default function EmployeesPage() {
 
       {/* Digital ID Card Modal */}
       {showIdCard && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowIdCard(null)} style={{ background: 'rgba(0,0,0,0.85)', zIndex: 20000 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: '100%' }}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowIdCard(null)} style={{ background: 'rgba(0,0,0,0.9)', zIndex: 20000, backdropFilter: 'blur(10px)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: '95vw' }}>
             
-            <div id="id-card-capture" className="id-card-v3">
-              <div className="id-v3-inner">
-                {/* Left Section - Identity Column */}
-                <div className="id-v3-left">
-                  <div className="id-v3-photo-ring">
-                    {getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto) ? (
-                      <img src={getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto)} alt="Member" className="id-v3-img" />
-                    ) : (
-                      <div className="id-v3-initials">{(showIdCard.user?.firstName?.[0]||'E')}</div>
-                    )}
-                  </div>
-                  <div className="id-v3-qr-wrap">
-                    <div className="id-v3-qr-inner">
-                      {Array.from({length:16}).map((_,i) => <div key={i} className="qr-dot" style={{ opacity: Math.random() > 0.3 ? 1 : 0.2 }}></div>)}
-                    </div>
-                  </div>
-                </div>
+            <div className="id-card-controls">
+              <button 
+                onClick={() => setIdCardOrientation('horizontal')}
+                className={idCardOrientation === 'horizontal' ? 'active' : ''}
+              >
+                Horizontal View
+              </button>
+              <button 
+                onClick={() => setIdCardOrientation('vertical')}
+                className={idCardOrientation === 'vertical' ? 'active' : ''}
+              >
+                Vertical View
+              </button>
+            </div>
 
-                {/* Right Section - Data Column */}
-                <div className="id-v3-right">
-                  <div className="id-v3-header">
-                    <div className="id-v3-logo-badge">{(JSON.parse(localStorage.getItem('ems_user'))?.company?.name?.[0] || 'E')}</div>
-                    <div className="id-v3-company-group">
-                      <h3 className="id-v3-company-name">{JSON.parse(localStorage.getItem('ems_user'))?.company?.name || 'TSRIJANALI IT SERVICES'}</h3>
-                      <p className="id-v3-subtitle">Corporate Access Identity</p>
+            <div id="id-card-capture" className={`id-card-premium ${idCardOrientation}`}>
+              <div className="card-inner">
+                {idCardOrientation === 'horizontal' ? (
+                  <div className="h-layout">
+                    <div className="h-left">
+                      <div className="photo-container">
+                        {getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto) ? (
+                          <img src={getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto)} alt="" />
+                        ) : (
+                          <div className="initials">{(showIdCard.user?.firstName?.[0]||'E')}</div>
+                        )}
+                      </div>
+                      <div className="qr-box">
+                         <div className="qr-grid">
+                            {Array.from({length:16}).map((_,i) => <div key={i} className="qr-bit" style={{ opacity: Math.random() > 0.4 ? 1 : 0.1 }}></div>)}
+                         </div>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="id-v3-member-block">
-                    <h2 className="id-v3-name">{showIdCard.user?.firstName} {showIdCard.user?.lastName}</h2>
-                    <p className="id-v3-desig">{showIdCard.designation}</p>
-                  </div>
+                      <div className="h-right">
+                        <div className="brand">
+                           <div className="logo-sq">{(JSON.parse(localStorage.getItem('ems_user'))?.company?.name?.[0] || 'E')}</div>
+                           <div>
+                             <h3 className="company-txt">{JSON.parse(localStorage.getItem('ems_user'))?.company?.name || 'TSRIJANALI IT SERVICES'}</h3>
+                             <p className="tagline">OFFICIAL IDENTITY CARD</p>
+                           </div>
+                        </div>
 
-                  <div className="id-v3-info-grid">
-                    <div className="id-v3-item">
-                      <span className="id-v3-label">ID NO.</span>
-                      <span className="id-v3-value">{showIdCard.employeeId}</span>
-                    </div>
-                    <div className="id-v3-item">
-                      <span className="id-v3-label">ROLE</span>
-                      <span className="id-v3-value" style={{ textTransform:'capitalize' }}>{showIdCard.user?.role}</span>
-                    </div>
-                    <div className="id-v3-item">
-                      <span className="id-v3-label">DEPT.</span>
-                      <span className="id-v3-value">{showIdCard.department}</span>
-                    </div>
-                    <div className="id-v3-item">
-                      <span className="id-v3-label">JOINED</span>
-                      <span className="id-v3-value">{new Date(showIdCard.joiningDate).toLocaleDateString('en-IN', { month:'short', year:'numeric' })}</span>
-                    </div>
-                  </div>
+                        <div className="user-info">
+                          <h2 className="user-name">{showIdCard.user?.firstName} {showIdCard.user?.lastName}</h2>
+                          <span className="user-role-badge">{showIdCard.designation}</span>
+                        </div>
 
-                  <div className="id-v3-footer">
-                    <div className="id-v3-security">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ opacity:0.6 }}><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
-                      <span>Secure Digitally Verified</span>
-                    </div>
-                    <div className="id-v3-accent-dots"></div>
+                        <div className="details-grid-new">
+                          <div className="detail-item">
+                            <label>EMP ID</label>
+                            <span>{showIdCard.employeeId}</span>
+                          </div>
+                          <div className="detail-item">
+                            <label>DEPT</label>
+                            <span>{showIdCard.department}</span>
+                          </div>
+                          <div className="detail-item">
+                            <label>PHONE</label>
+                            <span>{showIdCard.user?.phone || 'N/A'}</span>
+                          </div>
+                          <div className="detail-item">
+                            <label>BLOOD</label>
+                            <span style={{ color:'#ef4444' }}>{showIdCard.personalInfo?.bloodGroup || 'O+'}</span>
+                          </div>
+                          <div className="detail-item">
+                            <label>JOINED</label>
+                            <span>{new Date(showIdCard.joiningDate).toLocaleDateString('en-IN', { month:'short', year:'numeric' })}</span>
+                          </div>
+                        </div>
+
+                        <div className="card-footer-new">
+                          <div className="security-verified">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+                             AUTHORIZED PERSONNEL ONLY
+                          </div>
+                        </div>
+                      </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="v-layout-new">
+                    <div className="v-banner-top">
+                      <div className="v-banner-logo">{(JSON.parse(localStorage.getItem('ems_user'))?.company?.name?.[0] || 'E')}</div>
+                      <h3 className="v-banner-name">{JSON.parse(localStorage.getItem('ems_user'))?.company?.name || 'TSRIJANALI IT SERVICES'}</h3>
+                    </div>
+
+                    <div className="v-photo-section">
+                        <div className="v-photo-circle">
+                          {getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto) ? (
+                            <img src={getImageUrl(showIdCard.user?.avatar || showIdCard.profilePhoto)} alt="" />
+                          ) : (
+                            <div className="v-photo-initials">{(showIdCard.user?.firstName?.[0]||'E')}</div>
+                          )}
+                        </div>
+                    </div>
+
+                    <div className="v-id-body">
+                       <div className="v-primary-info">
+                         <h2 className="v-user-name" style={{ fontSize: (showIdCard.user?.firstName?.length + (showIdCard.user?.lastName?.length || 0)) > 15 ? '20px' : '26px' }}>
+                           {showIdCard.user?.firstName} {showIdCard.user?.lastName}
+                         </h2>
+                         <p className="v-user-desig">{showIdCard.designation}</p>
+                       </div>
+
+                       <div className="v-info-divider"></div>
+
+                       <div className="v-info-table">
+                          <div className="v-info-row">
+                             <label>Emp ID</label>
+                             <span>{showIdCard.employeeId}</span>
+                          </div>
+                          <div className="v-info-row">
+                             <label>Dept</label>
+                             <span>{showIdCard.department}</span>
+                          </div>
+                          <div className="v-info-row">
+                             <label>Phone</label>
+                             <span>{showIdCard.user?.phone || 'N/A'}</span>
+                          </div>
+                          <div className="v-info-row">
+                             <label>Blood</label>
+                             <span style={{ color:'#ef4444' }}>{showIdCard.personalInfo?.bloodGroup || 'O+'}</span>
+                          </div>
+                          <div className="v-info-row">
+                             <label>Joined</label>
+                             <span>{new Date(showIdCard.joiningDate).toLocaleDateString('en-IN', { month:'short', year:'numeric' })}</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="v-id-footer">
+                       <div className="v-footer-top">
+                          <div className="v-qr-wrap">
+                            <div className="v-qr-grid">
+                              {Array.from({length:16}).map((_,i) => <div key={i} className="v-qr-dot" style={{ opacity: Math.random() > 0.4 ? 1 : 0.1 }}></div>)}
+                            </div>
+                          </div>
+                          <div className="v-sec-info">
+                             <div className="v-sec-label">SECURE ID</div>
+                             <div className="v-sec-verified">VERIFIED</div>
+                          </div>
+                       </div>
+                       <div className="v-bottom-branding">
+                          www.technova.com
+                       </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button className="btn btn-secondary" onClick={() => setShowIdCard(null)}>Close</button>
-              <button className="btn btn-primary" onClick={() => window.print()}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8 }}><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2m-2 4H8v-4h8v4z"/></svg>
-                Print ID Card
+            <div className="action-btns">
+              <button className="btn-close" onClick={() => setShowIdCard(null)}>Close Overlay</button>
+              <button className="btn-print" onClick={() => window.print()}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2m-2 4H8v-4h8v4z"/></svg>
+                Print Official ID
               </button>
             </div>
           </div>
 
           <style jsx>{`
-            .id-card-v3 {
-              width: 520px;
-              height: 320px;
-              background: #0f172a;
-              border-radius: 28px;
-              padding: 1px;
-              position: relative;
-              overflow: hidden;
-              color: white;
-              font-family: 'Inter', system-ui, sans-serif;
-              box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+            .id-card-controls {
+              background: rgba(255,255,255,0.08); padding: 5px; border-radius: 14px; display: flex; gap: 5px; border: 1px solid rgba(255,255,255,0.1);
             }
-            .id-v3-inner {
-              width: 100%;
-              height: 100%;
-              background: radial-gradient(circle at top right, rgba(99,102,241,0.15), transparent 60%),
-                          radial-gradient(circle at bottom left, rgba(16,185,129,0.05), transparent 60%),
-                          #0f172a;
-              border-radius: 27px;
-              display: flex;
-              position: relative;
-              z-index: 1;
+            .id-card-controls button {
+              padding: 10px 24px; border: none; border-radius: 10px; font-size: 13px; fontWeight: 700; cursor: pointer; color: #94a3b8; background: transparent; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
-            .id-v3-left {
-              width: 170px;
-              background: rgba(255,255,255,0.02);
-              border-right: 1px solid rgba(255,255,255,0.05);
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 24px;
+            .id-card-controls button.active {
+              background: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.3);
             }
-            .id-v3-photo-ring {
-              width: 124px;
-              height: 124px;
-              border-radius: 24px;
-              background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-              padding: 3px;
-              box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
-            }
-            .id-v3-img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-              border-radius: 21px;
-              border: 2px solid #0f172a;
-            }
-            .id-v3-initials {
-              width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-              font-size: 52px; font-weight: 900; color: rgba(255,255,255,0.1);
-            }
-            .id-v3-qr-wrap {
-              background: rgba(255,255,255,0.05);
-              padding: 10px;
-              border-radius: 12px;
-              border: 1px solid rgba(255,255,255,0.1);
-            }
-            .id-v3-qr-inner {
-              display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
-            }
-            .qr-dot { width: 5px; height: 5px; background: white; border-radius: 1px; }
 
-            .id-v3-right {
-              flex: 1;
-              padding: 32px 36px;
-              display: flex;
-              flex-direction: column;
-            }
-            .id-v3-header {
-              display: flex;
-              align-items: center;
-              gap: 14px;
-              margin-bottom: 28px;
-            }
-            .id-v3-logo-badge {
-              width: 36px;
-              height: 36px;
-              background: linear-gradient(135deg, #6366f1, #10b981);
-              border-radius: 10px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-weight: 900;
-              font-size: 16px;
-              color: white;
-            }
-            .id-v3-company-name {
-              font-size: 15px;
-              font-weight: 800;
-              margin: 0;
-              color: #f8fafc;
-              letter-spacing: -0.01em;
-            }
-            .id-v3-subtitle {
-              font-size: 9px;
-              text-transform: uppercase;
-              color: #94a3b8;
-              letter-spacing: 0.12em;
-              font-weight: 700;
-              margin: 3px 0 0;
-            }
-            .id-v3-member-block { margin-bottom: 28px; }
-            .id-v3-name { font-size: 26px; font-weight: 800; margin: 0; color: white; letter-spacing: -0.03em; }
-            .id-v3-desig { font-size: 13px; color: #6366f1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
-            
-            .id-v3-info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1.2fr;
-              gap: 16px 24px;
-            }
-            .id-v3-item { display: flex; flex-direction: column; gap: 3px; }
-            .id-v3-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
-            .id-v3-value { font-size: 12px; font-weight: 600; color: #cbd5e1; }
+            .id-card-premium.horizontal { width: 400px; height: 250px; }
+            .id-card-premium.vertical { width: 250px; height: 400px; }
 
-            .id-v3-footer {
-              margin-top: auto;
-              padding-top: 20px;
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-end;
-              border-top: 1px solid rgba(255,255,255,0.05);
+            .card-inner {
+              width: 100%; height: 100%; border-radius: 16px; overflow: hidden; position: relative;
+              background: radial-gradient(circle at top right, rgba(99,102,241,0.2), transparent 50%),
+                          radial-gradient(circle at bottom left, rgba(16,185,129,0.1), transparent 50%),
+                          #020617;
             }
-            .id-v3-security { display: flex; align-items: center; gap: 6px; font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-            .id-v3-accent-dots { position: absolute; bottom: 32px; right: 36px; width: 40px; height: 4px; border-radius: 10px; background: linear-gradient(90deg, #6366f1, transparent); }
 
+            /* Horizontal Layout Adjustments */
+            .h-layout { display: flex; height: 100%; }
+            .h-left { width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; border-right: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01); }
+            .photo-container { width: 100px; height: 100px; border-radius: 14px; padding: 2px; background: linear-gradient(135deg, #6366f1, #10b981); box-shadow: 0 8px 16px -5px rgba(99,102,241,0.4); }
+            .photo-container img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; border: 2px solid #020617; }
+            .initials { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 800; color: rgba(255,255,255,0.05); }
+
+            .h-right { flex: 1; padding: 20px 25px; display: flex; flex-direction: column; }
+            .details-grid-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+            .detail-item { display: flex; flex-direction: column; gap: 0px; }
+            .detail-item label { font-size: 6px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+            .detail-item span { font-size: 10px; color: #f1f5f9; font-weight: 600; }
+            .card-footer-new { margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
+
+            .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
+            .logo-sq { width: 28px; height: 28px; background: #6366f1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: white; box-shadow: 0 4px 8px rgba(99,102,241,0.4); }
+            .company-txt { font-size: 12px; font-weight: 800; color: white; margin: 0; letter-spacing: -0.01em; }
+            .tagline { font-size: 7px; color: #6366f1; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.1em; }
+
+            .user-info { margin-bottom: 15px; }
+            .user-name { font-size: 16px; font-weight: 800; color: white; margin: 0 0 2px 0; letter-spacing: -0.01em; }
+            .user-role-badge { font-size: 8px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; background: rgba(16,185,129,0.1); border-radius: 20px; }
+
+            /* New Vertical Design (Hybrid) */
+            .v-layout-new { height: 100%; display: flex; flex-direction: column; background: #fff; color: #1e293b; position: relative; }
+            .v-banner-top { background: linear-gradient(135deg, #0f172a, #1e1b4b); padding: 15px 12px 35px; text-align: center; border-radius: 0 0 24px 24px; position: relative; }
+            .v-banner-logo { width: 28px; height: 28px; background: #6366f1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; margin: 0 auto 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+            .v-banner-name { font-size: 11px; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+
+            .v-photo-section { display: flex; justify-content: center; margin-top: -30px; position: relative; z-index: 2; }
+            .v-photo-circle { width: 85px; height: 85px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 8px 16px rgba(0,0,0,0.15); overflow: hidden; background: #f8fafc; }
+            .v-photo-circle img { width: 100%; height: 100%; object-fit: cover; }
+            .v-photo-initials { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 35px; font-weight: 800; color: #cbd5e1; }
+
+            .v-id-body { flex: 1; padding: 12px 20px; display: flex; flex-direction: column; align-items: center; }
+            .v-primary-info { text-align: center; margin-bottom: 12px; }
+            .v-user-name { font-size: 16px; font-weight: 800; color: #0f172a; margin: 0 0 2px 0; letter-spacing: -0.01em; }
+            .v-user-desig { font-size: 9px; color: #6366f1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; }
+
+            .v-info-divider { width: 30px; height: 2px; background: #f1f5f9; border-radius: 10px; margin-bottom: 12px; }
+
+            .v-info-table { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+            .v-info-row { display: flex; justify-content: space-between; align-items: center; }
+            .v-info-row label { font-size: 7px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+            .v-info-row span { font-size: 10px; font-weight: 600; color: #1e293b; }
+
+            .v-id-footer { background: #f8fafc; padding: 12px 20px; border-radius: 24px 24px 0 0; border-top: 1px solid #f1f5f9; }
+            .v-footer-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+            .v-qr-wrap { background: white; padding: 5px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+            .v-qr-dot { width: 2px; height: 2px; background: #0f172a; border-radius: 1px; }
+            .v-qr-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+            .v-sec-info { text-align: right; }
+            .v-sec-label { font-size: 6px; font-weight: 800; color: #cbd5e1; letter-spacing: 1px; }
+            .v-sec-verified { font-size: 9px; font-weight: 900; color: #10b981; letter-spacing: 0.5px; }
+            .v-bottom-branding { text-align: center; font-size: 7px; color: #94a3b8; font-weight: 700; letter-spacing: 1px; }
+
+            .action-btns { display: flex; gap: 15px; }
+            .btn-close { padding: 12px 25px; border-radius: 12px; background: rgba(255,255,255,0.1); color: white; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+            .btn-close:hover { background: rgba(255,255,255,0.15); }
+            .btn-print { padding: 12px 30px; border-radius: 12px; background: white; color: black; border: none; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.3s; }
+            .btn-print:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+
+            /* Print Fixes */
             @media print {
               body * { visibility: hidden; }
-              #id-card-capture, #id-card-capture * { visibility: visible; }
-              #id-card-capture { 
-                position: fixed;
-                left: 50%;
-                top: 50%;
-                transform: translate(-50%, -50%);
-                border: none;
-                box-shadow: none;
-                width: 520px; height: 320px;
+              #printable-id-card, #printable-id-card * { visibility: visible; }
+              #printable-id-card { 
+                position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1.1); 
+                box-shadow: none !important; border: 1px solid #eee;
               }
-              .modal-overlay { background: white !important; }
+              .id-card-controls, .action-btns, .modal-overlay { background: white !important; backdrop-filter: none !important; }
+              .modal-overlay { display: block !important; position: static !important; }
             }
           `}</style>
-
-
         </div>
       )}
     </div>

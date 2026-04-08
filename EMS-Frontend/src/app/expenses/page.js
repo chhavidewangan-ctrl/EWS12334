@@ -9,7 +9,8 @@ const PAYMENT_MODES = ['cash', 'bank_transfer', 'card', 'upi', 'cheque'];
 const IMG_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export default function ExpensesPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isHR, isManager, isAccountant } = useAuth();
+  const canViewAll = isAdmin() || isHR() || isManager() || isAccountant();
   const [viewReceipt, setViewReceipt] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -162,6 +163,7 @@ export default function ExpensesPage() {
           <table>
             <thead>
               <tr>
+                {canViewAll && <th>Employee</th>}
                 <th>Category</th>
                 <th>Amount</th>
                 <th>Receipt</th>
@@ -177,7 +179,7 @@ export default function ExpensesPage() {
               {loading ? (
                 <tr><td colSpan={9}><div className="loading-overlay"><div className="loading-spinner"></div></div></td></tr>
               ) : expenses.length === 0 ? (
-                <tr><td colSpan={9}>
+                <tr><td colSpan={canViewAll ? 10 : 9}>
                   <div className="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <h3>No expenses found</h3><p>Submit your first expense</p>
@@ -185,6 +187,11 @@ export default function ExpensesPage() {
                 </td></tr>
               ) : expenses.map(exp => (
                 <tr key={exp._id}>
+                  {canViewAll && (
+                    <td style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 13 }}>
+                      {exp.createdBy?.firstName} {exp.createdBy?.lastName}
+                    </td>
+                  )}
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 16 }}>
@@ -219,7 +226,7 @@ export default function ExpensesPage() {
                       {exp.status === 'pending' && (
                         <>
                           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(exp)}>Edit</button>
-                          {isAdmin() && (
+                          {(isAdmin() || isAccountant() || isHR() || isManager()) && (
                             <>
                               <button className="btn btn-success btn-sm" onClick={() => handleApprove(exp._id, 'approved')}>✓</button>
                               <button className="btn btn-danger btn-sm" onClick={() => handleApprove(exp._id, 'rejected')}>✗</button>

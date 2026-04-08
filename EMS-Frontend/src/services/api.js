@@ -162,9 +162,11 @@ export const systemAPI = {
   getHolidays: () => api.get('/holidays'),
   createHoliday: (data) => api.post('/holidays', data),
   deleteHoliday: (id) => api.delete(`/holidays/${id}`),
-  // Company / Branches
+  // Company / Branches Management
+  getAllCompanies: () => api.get('/auth/companies'),
+  updateCompanyStatus: (id, status) => api.put(`/auth/companies/${id}/status`, { status }),
+  getCompaniesPublic: () => api.get('/auth/companies-public'),
   getCompany: () => api.get('/companies'),
-  getCompaniesPublic: () => api.get('/auth/companies'),
   createCompany: (data) => api.post('/companies', data),
   updateCompany: (id, data) => {
     // If only one argument is provided, it's the data, and we use the default route

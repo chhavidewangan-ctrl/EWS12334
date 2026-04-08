@@ -49,7 +49,8 @@ exports.registerCompany = async (req, res) => {
       gstNumber: gstNumber || '',
       panNumber: panNumber || '',
       address: address || {},
-      isActive: true,
+      status: 'pending',
+      isActive: false,
     });
 
     // ── Create Company Administrator User ───────────────────────────────
@@ -61,7 +62,7 @@ exports.registerCompany = async (req, res) => {
       phone: phone || '',
       role: 'admin',
       company: createdCompany._id,
-      isActive: true,
+      isActive: false, // User is also inactive until company is approved
     });
 
     // Back-link company → createdBy
@@ -72,18 +73,14 @@ exports.registerCompany = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Company registered successfully.',
-      token,
+      message: 'Company registration request submitted. Please wait for Superadmin approval.',
+      // No token returned yet as they shouldn't be able to log in
       user: {
-        id: createdUser._id,
         email: createdUser.email,
         firstName: createdUser.firstName,
         lastName: createdUser.lastName,
-        role: createdUser.role,
-        company: {
-          id: createdCompany._id,
-          name: createdCompany.name,
-        },
+        companyName: createdCompany.name,
+        status: createdCompany.status
       },
     });
 
@@ -125,8 +122,18 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    // Check Company status if user is not a superadmin
+    if (user.role !== 'superadmin' && user.company) {
+      if (user.company.status === 'pending') {
+        return res.status(401).json({ success: false, message: 'Your company registration is pending approval by Superadmin.' });
+      }
+      if (user.company.status === 'rejected') {
+        return res.status(401).json({ success: false, message: 'Your company registration has been rejected.' });
+      }
+    }
+
     if (!user.isActive) {
-      return res.status(401).json({ success: false, message: 'Account is deactivated' });
+      return res.status(401).json({ success: false, message: 'Your account is currently inactive. Please contact your administrator.' });
     }
 
     const isMatch = await user.matchPassword(password);
@@ -139,6 +146,11 @@ exports.login = async (req, res) => {
 
     const token = user.getSignedJwtToken();
 
+    let employee = null;
+    if (user.employee) {
+      employee = await Employee.findById(user.employee);
+    }
+
     const userData = {
       id: user._id,
       email: user.email,
@@ -147,8 +159,11 @@ exports.login = async (req, res) => {
       fullName: user.fullName,
       role: user.role,
       avatar: user.avatar,
+      phone: user.phone,
       company: user.company,
-      isEmailVerified: user.isEmailVerified
+      branch: user.branch,
+      isEmailVerified: user.isEmailVerified,
+      employee
     };
 
     res.status(200).json({ success: true, token, user: userData });
@@ -465,4 +480,53 @@ exports.updateAvatar = async (req, res) => {
 exports.logout = async (req, res) => {
   await logAction(req, 'LOGOUT', 'User', `User logged out: ${req.user.firstName} ${req.user.lastName}`);
   res.status(200).json({ success: true, message: 'Logged out successfully' });
+};
+
+// ── Superadmin: Company Approval ─────────────────────────────────────
+
+// @desc Get all companies (Superadmin only)
+// @route GET /api/auth/companies
+exports.getCompanies = async (req, res) => {
+  try {
+    const companies = await Company.find().populate('createdBy', 'firstName lastName email');
+    res.status(200).json({ success: true, count: companies.length, data: companies });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc Approve/Reject company registration
+// @route PUT /api/auth/companies/:id/status
+exports.updateCompanyStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const company = await Company.findById(req.params.id);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Company not found' });
+    }
+
+    company.status = status;
+    company.isActive = status === 'approved';
+    await company.save();
+
+    // If approved, also activate the admin user who created it
+    if (status === 'approved' && company.createdBy) {
+      await User.findByIdAndUpdate(company.createdBy, { isActive: true });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `Company ${status} successfully.`, 
+      data: company 
+    });
+
+    await logAction(req, 'UPDATE', 'Company', `Company status updated to ${status}: ${company.name}`);
+  } catch (error) {
+    console.error('Update company status error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
