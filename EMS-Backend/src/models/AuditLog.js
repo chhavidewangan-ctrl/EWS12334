@@ -4,7 +4,7 @@ const auditLogSchema = new mongoose.Schema({
   company: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company',
-    required: true
+    required: false // Allow platform-level logs
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -19,7 +19,7 @@ const auditLogSchema = new mongoose.Schema({
   resourceType: {
     type: String,
     required: true,
-    enum: ['Employee', 'Client', 'Vendor', 'Invoice', 'Payroll', 'Inventory', 'Sale', 'Purchase', 'Leave', 'Attendance', 'Project', 'User', 'System']
+    enum: ['Employee', 'Client', 'Vendor', 'Invoice', 'Payroll', 'Inventory', 'Sale', 'Purchase', 'Leave', 'Attendance', 'Project', 'User', 'System', 'Company']
   },
   resourceId: {
     type: mongoose.Schema.Types.ObjectId

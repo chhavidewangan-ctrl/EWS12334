@@ -60,12 +60,15 @@ export function AuthProvider({ children }) {
   const isManager = useCallback(() => hasRole(['superadmin', 'admin', 'manager']), [hasRole]);
   const isAccountant = useCallback(() => hasRole(['superadmin', 'admin', 'accountant']), [hasRole]);
   const isPlatformAdmin = useCallback(() => user?.role === 'superadmin' && !user?.company, [user]);
+  
+  // mutation permission: superadmin is read-only
+  const canEdit = useCallback(() => user && user.role !== 'superadmin', [user]);
 
   return (
     <AuthContext.Provider value={{
       user, token, loading,
       login, logout, refreshUser,
-      hasRole, isSuperAdmin, isAdmin, isHR, isManager, isAccountant, isPlatformAdmin,
+      hasRole, isSuperAdmin, isAdmin, isHR, isManager, isAccountant, isPlatformAdmin, canEdit,
       isAuthenticated: !!user
     }}>
       {children}

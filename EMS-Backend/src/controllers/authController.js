@@ -171,7 +171,11 @@ exports.login = async (req, res) => {
     // Log the login
     req.user = user;
     req.companyId = user.company;
-    await logAction(req, 'LOGIN', 'User', `User logged in: ${user.fullName}`);
+    await logAction(req, 'LOGIN', 'User', `User logged in: ${user.fullName}`, { 
+      email: user.email, 
+      lastLogin: user.lastLogin,
+      ip: req.ip
+    });
     
   } catch (error) {
     console.error('Login error:', error);
@@ -403,7 +407,7 @@ exports.updatePassword = async (req, res) => {
 
     res.status(200).json({ success: true, token, message: 'Password updated' });
 
-    await logAction(req, 'UPDATE', 'User', `User updated their password`, null, user._id);
+    await logAction(req, 'UPDATE', 'User', `User updated their password`, { userId: user._id }, user._id);
     
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -441,7 +445,7 @@ exports.updateProfile = async (req, res) => {
       }
     });
 
-    await logAction(req, 'UPDATE', 'User', `User updated their profile`, null, user._id);
+    await logAction(req, 'UPDATE', 'User', `User updated their profile`, req.body, user._id);
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -468,7 +472,7 @@ exports.updateAvatar = async (req, res) => {
       avatar: user.avatar
     });
 
-    await logAction(req, 'UPDATE', 'User', `User updated their profile photo`, null, user._id);
+    await logAction(req, 'UPDATE', 'User', `User updated their profile photo`, { avatar: user.avatar }, user._id);
   } catch (error) {
     console.error('Update avatar error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -478,7 +482,7 @@ exports.updateAvatar = async (req, res) => {
 // @desc Logout user
 // @route POST /api/auth/logout
 exports.logout = async (req, res) => {
-  await logAction(req, 'LOGOUT', 'User', `User logged out: ${req.user.firstName} ${req.user.lastName}`);
+  await logAction(req, 'LOGOUT', 'User', `User logged out: ${req.user.firstName} ${req.user.lastName}`, { userId: req.user.id });
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 

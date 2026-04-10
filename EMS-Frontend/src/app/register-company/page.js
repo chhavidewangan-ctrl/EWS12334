@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AuthProvider } from '../../context/AuthContext';
+
 import { authAPI } from '../../services/api';
 
 function RegisterCompanyForm() {
@@ -227,10 +227,6 @@ function RegisterCompanyForm() {
 }
 
 export default function RegisterCompanyPage() {
-  return (
-    <AuthProvider>
-      <RegisterCompanyForm />
-    </AuthProvider>
-  );
+  return <RegisterCompanyForm />;
 }
 

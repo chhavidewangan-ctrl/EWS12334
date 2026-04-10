@@ -1,10 +1,12 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { erpAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const CATEGORIES = ['Electronics', 'Office Supplies', 'Furniture', 'Software', 'Hardware', 'Consumables', 'Equipment', 'Other'];
 
 export default function InventoryPage() {
+  const { canEdit } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -126,10 +128,12 @@ export default function InventoryPage() {
           <h1>Inventory</h1>
           <p>Manage stock and items</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-          Add Item
-        </button>
+        {canEdit() && (
+          <button className="btn btn-primary" onClick={openCreate}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+            Add Item
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -215,8 +219,12 @@ export default function InventoryPage() {
                   <td><span className={`tag tag-${statusColor[item.status] || 'secondary'}`}>{statusLabel[item.status] || item.status}</span></td>
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item._id)}>Del</button>
+                      {canEdit() && (
+                        <>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>Edit</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item._id)}>Del</button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

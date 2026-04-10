@@ -22,6 +22,7 @@ export default function AuditLogsPage() {
     month: '',
     year: new Date().getFullYear()
   });
+  const [selectedLog, setSelectedLog] = useState(null); // Added state for modal
 
   const fetchCompanies = useCallback(async () => {
     if (isPlatformAdmin()) {
@@ -179,6 +180,7 @@ export default function AuditLogsPage() {
                 <th>Timestamp</th>
                 {isPlatformAdmin() && <th>Company</th>}
                 <th>User</th>
+                <th>Role</th>
                 <th>Action</th>
                 <th>Resource</th>
                 <th>Description</th>
@@ -188,7 +190,7 @@ export default function AuditLogsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6">
+                  <td colSpan="8">
                     <div className="loading-overlay">
                       <div className="loading-spinner"></div>
                     </div>
@@ -196,7 +198,7 @@ export default function AuditLogsPage() {
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan="6">
+                  <td colSpan="8">
                     <div className="empty-state">
                       <p>No activity logs found for the selected filters.</p>
                     </div>
@@ -222,9 +224,14 @@ export default function AuditLogsPage() {
                         </div>
                         <div>
                           <div style={{ fontWeight: 500 }}>{log.user?.firstName} {log.user?.lastName}</div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{log.user?.role}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{log.user?.email}</div>
                         </div>
                       </div>
+                    </td>
+                    <td>
+                      <span className="tag" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '11px', textTransform: 'capitalize' }}>
+                        {log.user?.role || 'System'}
+                      </span>
                     </td>
                     <td>
                       <span className="tag" style={{ border: `1px solid ${getActionColor(log.action)}`, color: getActionColor(log.action), background: 'transparent' }}>
@@ -239,8 +246,12 @@ export default function AuditLogsPage() {
                     </td>
                     <td>
                       {log.details ? (
-                        <button className="btn btn-sm btn-outline" onClick={() => console.log(log.details)}>
-                          View Raw
+                        <button 
+                          className="btn btn-sm btn-outline" 
+                          style={{ fontSize: '10px', padding: '2px 8px' }}
+                          onClick={() => setSelectedLog(log)}
+                        >
+                          View Details
                         </button>
                       ) : '-'}
                     </td>
@@ -267,6 +278,58 @@ export default function AuditLogsPage() {
           </div>
         )}
       </div>
+
+      {/* Log Details Modal */}
+      {selectedLog && (
+        <div className="modal-overlay" onClick={() => setSelectedLog(null)}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Activity Details</h2>
+              <button className="icon-btn" onClick={() => setSelectedLog(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Action & Resource</div>
+                <div style={{ fontWeight: 600 }}>{selectedLog.action} on {selectedLog.resourceType}</div>
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Description</div>
+                <div>{selectedLog.description}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Metadata / Changes</div>
+                <div style={{ 
+                  background: 'var(--bg-secondary)', 
+                  padding: '16px', 
+                  borderRadius: '8px', 
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  overflowX: 'auto',
+                  border: '1px solid var(--border)'
+                }}>
+                  <pre style={{ margin: 0 }}>
+                    {JSON.stringify(selectedLog.details, null, 2)}
+                  </pre>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <div>
+                  <strong>IP Address:</strong> {selectedLog.ipAddress || 'Unknown'}
+                </div>
+                <div>
+                  <strong>Timestamp:</strong> {new Date(selectedLog.createdAt).toLocaleString()}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setSelectedLog(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .animate-in {

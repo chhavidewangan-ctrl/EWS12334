@@ -9,7 +9,7 @@ const PAYMENT_MODES = ['cash', 'bank_transfer', 'card', 'upi', 'cheque'];
 const IMG_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export default function ExpensesPage() {
-  const { isAdmin, isHR, isManager, isAccountant } = useAuth();
+  const { isAdmin, isHR, isManager, isAccountant, canEdit } = useAuth();
   const canViewAll = isAdmin() || isHR() || isManager() || isAccountant();
   const [viewReceipt, setViewReceipt] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -123,10 +123,12 @@ export default function ExpensesPage() {
           <h1>Expenses</h1>
           <p>Track and manage business expenses</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-          Add Expense
-        </button>
+        {canEdit() && (
+          <button className="btn btn-primary" onClick={openCreate}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+            Add Expense
+          </button>
+        )}
       </div>
 
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 20 }}>
@@ -225,8 +227,8 @@ export default function ExpensesPage() {
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {exp.status === 'pending' && (
                         <>
-                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(exp)}>Edit</button>
-                          {(isAdmin() || isAccountant() || isHR() || isManager()) && (
+                          {canEdit() && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(exp)}>Edit</button>}
+                          {(isAdmin() || isAccountant() || isHR() || isManager()) && canEdit() && (
                             <>
                               <button className="btn btn-success btn-sm" onClick={() => handleApprove(exp._id, 'approved')}>✓</button>
                               <button className="btn btn-danger btn-sm" onClick={() => handleApprove(exp._id, 'rejected')}>✗</button>
@@ -234,7 +236,7 @@ export default function ExpensesPage() {
                           )}
                         </>
                       )}
-                      <button className="btn btn-danger btn-sm" onClick={() => askDelete(exp._id)}>Del</button>
+                      {canEdit() && <button className="btn btn-danger btn-sm" onClick={() => askDelete(exp._id)}>Del</button>}
                     </div>
                   </td>
                 </tr>

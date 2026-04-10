@@ -31,12 +31,36 @@ exports.protect = async (req, res, next) => {
 // Role authorization
 exports.authorize = (...roles) => {
   return (req, res, next) => {
+    // Check if user has the required role
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: `Role '${req.user.role}' is not authorized to access this route`
       });
     }
+
+    // Superadmin Read-Only Enforcement
+    // If user is superadmin and trying to perform a non-GET operation (write operation),
+    // and they are not specifically allowed via an exception, then block it.
+    if (req.user.role === 'superadmin' && req.method !== 'GET') {
+      // List of endpoints where superadmin is ALLOWED to write (e.g., login/logout are usually skipped via protect)
+      const allowedWritePaths = [
+        '/api/auth/logout', 
+        '/api/auth/profile',
+        '/api/auth/updatepassword',
+        '/api/auth/companies' // Allow company approval/rejection
+      ];
+      
+      const isAllowed = allowedWritePaths.some(p => req.originalUrl.includes(p));
+      
+      if (!isAllowed) {
+        return res.status(403).json({
+          success: false,
+          message: 'Superadmin is in Read-Only mode and cannot perform this action.'
+        });
+      }
+    }
+
     next();
   };
 };
@@ -51,9 +75,12 @@ exports.companyCheck = (req, res, next) => {
   }
 
   // Set companyId for scoping
-  // Superadmin can override companyId via header to view data of other companies
-  if (isSuperAdmin && req.headers['x-company-id']) {
-    req.companyId = req.headers['x-company-id'];
+  // Superadmin can override companyId via header to view data of other companies.
+  // By default, superadmin has no companyId (global view).
+  if (isSuperAdmin) {
+    if (req.headers['x-company-id']) {
+      req.companyId = req.headers['x-company-id'];
+    }
   } else if (req.user.company) {
     req.companyId = req.user.company;
   }

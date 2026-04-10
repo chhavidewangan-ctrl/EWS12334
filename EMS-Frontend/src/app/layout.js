@@ -1,5 +1,7 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { AuthProvider } from '../context/AuthContext';
+import { ThemeProvider } from '../context/ThemeContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -16,7 +18,11 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={inter.className}>
-        {children}
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

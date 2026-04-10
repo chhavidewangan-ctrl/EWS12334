@@ -66,7 +66,7 @@ exports.updateBranch = async (req, res) => {
   try {
     const branch = await Branch.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
     if (!branch) return res.status(404).json({ success: false, message: 'Branch not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Branch', `Updated branch: ${branch.name}`, null, branch._id);
+    await logAction(req, 'UPDATE', 'Branch', `Updated branch: ${branch.name}`, req.body, branch._id);
     res.status(200).json({ success: true, branch });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -75,7 +75,7 @@ exports.deleteBranch = async (req, res) => {
   try {
     const branch = await Branch.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!branch) return res.status(404).json({ success: false, message: 'Branch not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Branch', `Deleted branch: ${branch.name}`, null, branch._id);
+    await logAction(req, 'DELETE', 'Branch', `Deleted branch: ${branch.name}`, { branchId: branch._id, name: branch.name }, branch._id);
     res.status(200).json({ success: true, message: 'Branch deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -184,7 +184,7 @@ exports.createAnnouncement = async (req, res) => {
     });
 
     announcement = await announcement.populate('createdBy', 'firstName lastName');
-    await logAction(req, 'CREATE', 'Announcement', `Posted announcement: ${title}`, null, announcement._id);
+    await logAction(req, 'CREATE', 'Announcement', `Posted announcement: ${title}`, req.body, announcement._id);
     res.status(201).json({ success: true, announcement });
   } catch (error) {
     console.error('Create Announcement Detailed Error:', JSON.stringify(error, null, 2));
@@ -196,7 +196,7 @@ exports.updateAnnouncement = async (req, res) => {
   try {
     const announcement = await Announcement.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
     if (!announcement) return res.status(404).json({ success: false, message: 'Announcement not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Announcement', `Updated announcement: ${announcement.title}`, null, announcement._id);
+    await logAction(req, 'UPDATE', 'Announcement', `Updated announcement: ${announcement.title}`, req.body, announcement._id);
     res.status(200).json({ success: true, announcement });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -205,7 +205,7 @@ exports.deleteAnnouncement = async (req, res) => {
   try {
     const announcement = await Announcement.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!announcement) return res.status(404).json({ success: false, message: 'Announcement not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Announcement', `Deleted announcement: ${announcement.title}`, null, announcement._id);
+    await logAction(req, 'DELETE', 'Announcement', `Deleted announcement: ${announcement.title}`, { id: announcement._id, title: announcement.title }, announcement._id);
     res.status(200).json({ success: true, message: 'Announcement deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -246,7 +246,7 @@ exports.createTicket = async (req, res) => {
       createdBy: req.user.id
     });
     ticket = await ticket.populate('createdBy', 'firstName lastName');
-    await logAction(req, 'CREATE', 'Ticket', `Created ticket: ${ticketNumber}`, null, ticket._id);
+    await logAction(req, 'CREATE', 'Ticket', `Created ticket: ${ticketNumber}`, req.body, ticket._id);
     res.status(201).json({ success: true, ticket });
   } catch (error) {
     console.error('Create Ticket Error:', error);
@@ -258,7 +258,7 @@ exports.updateTicket = async (req, res) => {
   try {
     const ticket = await Ticket.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Ticket', `Updated ticket status: ${ticket.title}`, null, ticket._id);
+    await logAction(req, 'UPDATE', 'Ticket', `Updated ticket status: ${ticket.title}`, req.body, ticket._id);
     res.status(200).json({ success: true, ticket });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -269,7 +269,7 @@ exports.replyTicket = async (req, res) => {
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found or unauthorized' });
     ticket.replies.push({ user: req.user.id, message: req.body.message });
     await ticket.save();
-    await logAction(req, 'UPDATE', 'Ticket', `Replied to ticket: ${ticket.title}`, null, ticket._id);
+    await logAction(req, 'UPDATE', 'Ticket', `Replied to ticket: ${ticket.title}`, { message: req.body.message }, ticket._id);
     res.status(200).json({ success: true, ticket });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -290,7 +290,7 @@ exports.createHoliday = async (req, res) => {
       ...req.body,
       company: req.companyId || req.body.company || req.user.company
     });
-    await logAction(req, 'CREATE', 'Holiday', `Created holiday: ${holiday.name}`, null, holiday._id);
+    await logAction(req, 'CREATE', 'Holiday', `Created holiday: ${holiday.name}`, req.body, holiday._id);
     res.status(201).json({ success: true, holiday });
   } catch (error) {
     console.error('Create Holiday Error:', error);
@@ -302,7 +302,7 @@ exports.deleteHoliday = async (req, res) => {
   try {
     const holiday = await Holiday.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!holiday) return res.status(404).json({ success: false, message: 'Holiday not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Holiday', `Deleted holiday: ${holiday.name}`, null, holiday._id);
+    await logAction(req, 'DELETE', 'Holiday', `Deleted holiday: ${holiday.name}`, { id: holiday._id, name: holiday.name }, holiday._id);
     res.status(200).json({ success: true, message: 'Holiday deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };

@@ -11,8 +11,8 @@ exports.getEmployees = async (req, res) => {
     const query = {};
     if (req.companyId) {
       query.company = req.companyId;
-    } else if (req.user.role !== 'platform_superadmin') {
-      // If not platform admin and no companyId, return empty list
+    } else if (req.user.role !== 'superadmin') {
+      // If not superadmin and no companyId, return empty list
       return res.status(200).json({ success: true, count: 0, total: 0, employees: [] });
     }
 
@@ -158,7 +158,7 @@ exports.createEmployee = async (req, res) => {
         const template = emailTemplates.welcomeEmail(firstName, email, tempPassword);
         sendEmail({ email, subject: template.subject, html: template.html });
 
-        await logAction(req, 'CREATE', 'Employee', `Created employee ${firstName} ${lastName} (${employeeId})`, null, employee._id);
+        await logAction(req, 'CREATE', 'Employee', `Created employee ${firstName} ${lastName} (${employeeId})`, req.body, employee._id);
 
         return res.status(201).json({ success: true, employee: populatedEmployee });
       } catch (employeeError) {
@@ -176,7 +176,7 @@ exports.createEmployee = async (req, res) => {
         message: 'Administrator created successfully',
         user: { id: user._id, email: user.email, role: user.role }
       });
-      await logAction(req, 'CREATE', 'User', `Created administrator ${firstName} ${lastName} (${user.role})`, null, user._id);
+      await logAction(req, 'CREATE', 'User', `Created administrator ${firstName} ${lastName} (${user.role})`, { role: user.role, email: user.email }, user._id);
     }
   } catch (error) {
     console.error('Create worker error:', error);
@@ -274,7 +274,7 @@ exports.deleteEmployee = async (req, res) => {
     // Delete the employee record
     await Employee.findOneAndDelete({ _id: req.params.id, company: req.companyId });
 
-    await logAction(req, 'DELETE', 'Employee', `Deleted employee record and user account for ID: ${req.params.id}`);
+    await logAction(req, 'DELETE', 'Employee', `Deleted employee record and user account for ID: ${req.params.id}`, { employeeId: req.params.id, userId: employee.user });
 
     res.status(200).json({ success: true, message: 'Employee deleted successfully' });
   } catch (error) {

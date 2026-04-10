@@ -22,7 +22,7 @@ exports.createClient = async (req, res) => {
     const data = { ...req.body };
     if (req.file) data.logo = `/uploads/${req.file.filename}`;
     const client = await Client.create({ ...data, company: req.companyId || req.body.company, createdBy: req.user.id });
-    await logAction(req, 'CREATE', 'Client', `Created new client: ${client.name}`, null, client._id);
+    await logAction(req, 'CREATE', 'Client', `Created new client: ${client.name}`, req.body, client._id);
     res.status(201).json({ success: true, client });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -37,7 +37,7 @@ exports.updateClient = async (req, res) => {
       { new: true }
     );
     if (!client) return res.status(404).json({ success: false, message: 'Client not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Client', `Updated client profile: ${client.name}`, null, client._id);
+    await logAction(req, 'UPDATE', 'Client', `Updated client profile: ${client.name}`, req.body, client._id);
     res.status(200).json({ success: true, client });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -46,7 +46,7 @@ exports.deleteClient = async (req, res) => {
   try {
     const client = await Client.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!client) return res.status(404).json({ success: false, message: 'Client not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Client', `Deleted client: ${client.name}`, null, client._id);
+    await logAction(req, 'DELETE', 'Client', `Deleted client: ${client.name}`, { id: client._id, name: client.name }, client._id);
     res.status(200).json({ success: true, message: 'Client deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -77,7 +77,7 @@ exports.createVendor = async (req, res) => {
     const data = { ...req.body };
     if (req.file) data.logo = `/uploads/${req.file.filename}`;
     const vendor = await Vendor.create({ ...data, company: req.companyId || req.body.company, createdBy: req.user.id });
-    await logAction(req, 'CREATE', 'Vendor', `Created new vendor: ${vendor.name}`, null, vendor._id);
+    await logAction(req, 'CREATE', 'Vendor', `Created new vendor: ${vendor.name}`, req.body, vendor._id);
     res.status(201).json({ success: true, vendor });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -92,7 +92,7 @@ exports.updateVendor = async (req, res) => {
       { new: true }
     );
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Vendor', `Updated vendor profile: ${vendor.name}`, null, vendor._id);
+    await logAction(req, 'UPDATE', 'Vendor', `Updated vendor profile: ${vendor.name}`, req.body, vendor._id);
     res.status(200).json({ success: true, vendor });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -101,7 +101,7 @@ exports.deleteVendor = async (req, res) => {
   try {
     const vendor = await Vendor.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Vendor', `Deleted vendor: ${vendor.name}`, null, vendor._id);
+    await logAction(req, 'DELETE', 'Vendor', `Deleted vendor: ${vendor.name}`, { id: vendor._id, name: vendor.name }, vendor._id);
     res.status(200).json({ success: true, message: 'Vendor deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -142,7 +142,7 @@ exports.createInvoice = async (req, res) => {
       ...req.body, invoiceNumber, items, subtotal, taxTotal, total, balanceDue: total,
       company: req.companyId || req.body.company, createdBy: req.user.id
     });
-    await logAction(req, 'CREATE', 'Invoice', `Created invoice: ${invoice.invoiceNumber}`, null, invoice._id);
+    await logAction(req, 'CREATE', 'Invoice', `Created invoice: ${invoice.invoiceNumber}`, req.body, invoice._id);
     res.status(201).json({ success: true, invoice });
   } catch (error) { console.error(error); res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -155,7 +155,7 @@ exports.updateInvoice = async (req, res) => {
       { new: true }
     );
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Invoice', `Updated invoice: ${invoice.invoiceNumber}`, null, invoice._id);
+    await logAction(req, 'UPDATE', 'Invoice', `Updated invoice: ${invoice.invoiceNumber}`, req.body, invoice._id);
     res.status(200).json({ success: true, invoice });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -164,7 +164,7 @@ exports.deleteInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Invoice', `Deleted invoice: ${invoice.invoiceNumber}`, null, invoice._id);
+    await logAction(req, 'DELETE', 'Invoice', `Deleted invoice: ${invoice.invoiceNumber}`, { id: invoice._id, number: invoice.invoiceNumber }, invoice._id);
     res.status(200).json({ success: true, message: 'Invoice deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -206,7 +206,7 @@ exports.createExpense = async (req, res) => {
       company: req.companyId || req.body.company,
       createdBy: req.user.id
     });
-    await logAction(req, 'CREATE', 'Expense', `Recorded new expense: ${expense.category} - ${expense.amount}`, null, expense._id);
+    await logAction(req, 'CREATE', 'Expense', `Recorded new expense: ${expense.category} - ${expense.amount}`, req.body, expense._id);
     res.status(201).json({ success: true, expense });
   } catch (error) {
     console.error("CREATE EXPENSE ERROR:", error);
@@ -239,7 +239,7 @@ exports.updateExpense = async (req, res) => {
 
     expense = await Expense.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, expenseData, { new: true });
     if (!expense) return res.status(404).json({ success: false, message: 'Expense not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Expense', `Updated expense: ${expense.category}`, null, expense._id);
+    await logAction(req, 'UPDATE', 'Expense', `Updated expense: ${expense.category}`, req.body, expense._id);
     res.status(200).json({ success: true, expense });
   } catch (error) {
     console.error("UPDATE EXPENSE ERROR:", error);
@@ -265,7 +265,7 @@ exports.deleteExpense = async (req, res) => {
 
     const expenseName = expense.category;
     await Expense.findOneAndDelete({ _id: req.params.id, company: req.companyId });
-    await logAction(req, 'DELETE', 'Expense', `Deleted expense: ${expenseName}`, null, expense._id);
+    await logAction(req, 'DELETE', 'Expense', `Deleted expense: ${expenseName}`, { id: expense._id, category: expense.category }, expense._id);
     res.status(200).json({ success: true, message: 'Expense deleted' });
   } catch (error) {
     console.error("DELETE EXPENSE ERROR:", error);
@@ -304,7 +304,7 @@ exports.createInventoryItem = async (req, res) => {
       company: req.companyId || req.user.company || req.body.company,
       createdBy: req.user.id
     });
-    await logAction(req, 'CREATE', 'Inventory', `Added inventory item: ${item.name}`, null, item._id);
+    await logAction(req, 'CREATE', 'Inventory', `Added inventory item: ${item.name}`, req.body, item._id);
     res.status(201).json({ success: true, item });
   } catch (error) {
     console.error("CREATE INVENTORY ERROR:", error);
@@ -324,7 +324,7 @@ exports.updateInventoryItem = async (req, res) => {
     else if (item.quantity <= item.reorderLevel) item.status = 'low_stock';
     else item.status = 'in_stock';
     await item.save();
-    await logAction(req, 'UPDATE', 'Inventory', `Updated inventory item: ${item.name}`, null, item._id);
+    await logAction(req, 'UPDATE', 'Inventory', `Updated inventory item: ${item.name}`, req.body, item._id);
     res.status(200).json({ success: true, item });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -333,7 +333,7 @@ exports.deleteInventoryItem = async (req, res) => {
   try {
     const item = await Inventory.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!item) return res.status(404).json({ success: false, message: 'Item not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Inventory', `Deleted inventory item: ${item.name}`, null, item._id);
+    await logAction(req, 'DELETE', 'Inventory', `Deleted inventory item: ${item.name}`, { id: item._id, name: item.name }, item._id);
     res.status(200).json({ success: true, message: 'Item deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -407,7 +407,7 @@ exports.createSale = async (req, res) => {
         }
       }
     }
-    await logAction(req, 'CREATE', 'Sale', `Recorded new sale: ${sale.salesNumber}`, null, sale._id);
+    await logAction(req, 'CREATE', 'Sale', `Recorded new sale: ${sale.salesNumber}`, req.body, sale._id);
     res.status(201).json({ success: true, sale });
   } catch (error) {
     console.error("CREATE SALE ERROR:", error);
@@ -419,7 +419,7 @@ exports.updateSale = async (req, res) => {
   try {
     const sale = await Sales.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
     if (!sale) return res.status(404).json({ success: false, message: 'Sale not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Sale', `Updated sale record: ${sale.salesNumber}`, null, sale._id);
+    await logAction(req, 'UPDATE', 'Sale', `Updated sale record: ${sale.salesNumber}`, req.body, sale._id);
     res.status(200).json({ success: true, sale });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -470,7 +470,7 @@ exports.updatePurchase = async (req, res) => {
   try {
     const purchase = await Purchase.findOneAndUpdate({ _id: req.params.id, company: req.companyId }, req.body, { new: true });
     if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found or unauthorized' });
-    await logAction(req, 'UPDATE', 'Purchase', `Updated purchase record: ${purchase.purchaseNumber}`, null, purchase._id);
+    await logAction(req, 'UPDATE', 'Purchase', `Updated purchase record: ${purchase.purchaseNumber}`, req.body, purchase._id);
     res.status(200).json({ success: true, purchase });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -479,7 +479,7 @@ exports.deleteSale = async (req, res) => {
   try {
     const sale = await Sales.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!sale) return res.status(404).json({ success: false, message: 'Sale not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Sale', `Deleted sale record: ${sale.salesNumber}`, null, sale._id);
+    await logAction(req, 'DELETE', 'Sale', `Deleted sale record: ${sale.salesNumber}`, { id: sale._id, number: sale.salesNumber }, sale._id);
     res.status(200).json({ success: true, message: 'Sale deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
@@ -488,7 +488,7 @@ exports.deletePurchase = async (req, res) => {
   try {
     const purchase = await Purchase.findOneAndDelete({ _id: req.params.id, company: req.companyId });
     if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found or unauthorized' });
-    await logAction(req, 'DELETE', 'Purchase', `Deleted purchase record: ${purchase.purchaseNumber}`, null, purchase._id);
+    await logAction(req, 'DELETE', 'Purchase', `Deleted purchase record: ${purchase.purchaseNumber}`, { id: purchase._id, number: purchase.purchaseNumber }, purchase._id);
     res.status(200).json({ success: true, message: 'Purchase deleted' });
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };

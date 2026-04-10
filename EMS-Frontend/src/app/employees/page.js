@@ -201,10 +201,12 @@ export default function EmployeesPage() {
           <h1>Employees</h1>
           <p>{total} total employees</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-          Add Employee
-        </button>
+        {userRole !== 'superadmin' && (
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add Employee
+          </button>
+        )}
       </div>
 
       {stats && (
@@ -312,12 +314,16 @@ export default function EmployeesPage() {
                       <button onClick={() => { setMsgRecipient(emp); setShowMsgModal(true); }} className="btn btn-info btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Send Message">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                       </button>
-                      <button onClick={() => openEdit(emp)} className="btn btn-primary btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Edit Employee">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      </button>
-                      <button onClick={() => handleDelete(emp._id)} className="btn btn-danger btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete Employee">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
+                      {userRole !== 'superadmin' && (
+                        <>
+                          <button onClick={() => openEdit(emp)} className="btn btn-primary btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Edit Employee">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </button>
+                          <button onClick={() => handleDelete(emp._id)} className="btn btn-danger btn-sm" style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete Employee">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -688,23 +694,27 @@ export default function EmployeesPage() {
               <div className="detail-section" style={{ marginTop: 24, padding:16, borderRadius:12, background:'var(--bg-alt)', border:'1px solid var(--border)' }}>
                 <h4 style={{ marginBottom: 16, fontSize: 11, textTransform:'uppercase', letterSpacing:'0.05em', color: 'var(--primary)', opacity:0.8 }}>Update Status</h4>
                 <div style={{ display:'flex', gap:10 }}>
-                  {viewEmp.status !== 'on_notice' && viewEmp.status !== 'terminated' && (
-                    <button 
-                      className="btn btn-warning" 
-                      style={{ flex:1, fontSize:12, height:36, padding:'0 12px' }}
-                      onClick={() => handleStatusChange(viewEmp._id, 'on_notice')}
-                    >
-                      Put on Notice
-                    </button>
-                  )}
-                  {viewEmp.status === 'on_notice' && (
-                    <button 
-                      className="btn btn-success" 
-                      style={{ flex:1, fontSize:12, height:36, padding:'0 12px' }}
-                      onClick={() => handleStatusChange(viewEmp._id, 'active')}
-                    >
-                      Re-activate
-                    </button>
+                  {userRole !== 'superadmin' && (
+                    <>
+                      {viewEmp.status !== 'on_notice' && viewEmp.status !== 'terminated' && (
+                        <button 
+                          className="btn btn-warning" 
+                          style={{ flex:1, fontSize:12, height:36, padding:'0 12px' }}
+                          onClick={() => handleStatusChange(viewEmp._id, 'on_notice')}
+                        >
+                          Put on Notice
+                        </button>
+                      )}
+                      {viewEmp.status === 'on_notice' && (
+                        <button 
+                          className="btn btn-success" 
+                          style={{ flex:1, fontSize:12, height:36, padding:'0 12px' }}
+                          onClick={() => handleStatusChange(viewEmp._id, 'active')}
+                        >
+                          Re-activate
+                        </button>
+                      )}
+                    </>
                   )}
                   <button className="btn btn-primary" style={{ flex:1, fontSize:12, height:36, padding:'0 12px' }} onClick={() => setViewEmp(null)}>
                     Close

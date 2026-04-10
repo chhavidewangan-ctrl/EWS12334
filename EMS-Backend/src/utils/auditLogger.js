@@ -11,18 +11,22 @@ const AuditLog = require('../models/AuditLog');
  */
 const logAction = async (req, action, resourceType, description, details = null, resourceId = null) => {
   try {
-    if (!req.user || !req.user.company) return;
+    if (!req.user) return;
+
+    // Use req.companyId if set (by middleware or superadmin selector),
+    // otherwise fall back to user's assigned company.
+    const companyId = req.companyId || req.user.company || null;
 
     await AuditLog.create({
-      company: req.user.company,
-      user: req.user._id,
+      company: companyId,
+      user: req.user._id || req.user.id,
       action,
       resourceType,
       description,
       details,
       resourceId,
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.headers['user-agent']
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.headers?.['user-agent']
     });
   } catch (error) {
     console.error('AUDIT LOG FAILED:', error);

@@ -3,8 +3,8 @@ import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { AuthProvider, useAuth } from '../../context/AuthContext';
-import { ThemeProvider, useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getImageUrl, systemAPI, API_URL } from '../../services/api';
 
 // --- Icons (inline SVG helpers) ---
@@ -330,8 +330,7 @@ function Navbar({ onToggleSidebar, collapsed }) {
     </nav>
   );
 }
-
-function DashboardLayout({ children }) {
+export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -412,15 +411,5 @@ function DashboardLayout({ children }) {
         />
       )}
     </div>
-  );
-}
-
-export default function DashboardLayoutWrapper({ children }) {
-  return (
-    <AuthProvider>
-      <ThemeProvider>
-        <DashboardLayout>{children}</DashboardLayout>
-      </ThemeProvider>
-    </AuthProvider>
   );
 }
