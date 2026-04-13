@@ -209,28 +209,14 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {stats && (
-        <div className="stats-grid" style={{ marginBottom: 20 }}>
-          {[
-            { label: 'Total', value: stats.total, color: '#6366f1' },
-            { label: 'Active', value: stats.active, color: '#10b981' },
-            { label: 'On Notice', value: stats.onNotice, color: '#f59e0b' },
-            { label: 'Inactive', value: stats.inactive, color: '#ef4444' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ padding: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      <div className="filter-bar">
+
+      <div className="filter-bar" style={{ gap: '16px', marginBottom: '24px' }}>
         <div className="search-input" style={{ flex: '1 1 300px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
           <input placeholder="Search by name, ID, department..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 2 }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flex: '2 1 400px' }}>
           {(userRole === 'superadmin' || companies.length > 1) && (
             <select className="form-control" style={{ flex: 1, minWidth: 140 }} value={companyId} onChange={e => { setCompanyId(e.target.value); setPage(1); }}>
               <option value="">All Companies</option>

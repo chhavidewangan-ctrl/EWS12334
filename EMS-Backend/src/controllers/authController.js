@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const Employee = require('../models/Employee');
-const { Company } = require('../models/System');
+const { Company, Notification } = require('../models/System');
 const { sendEmail, emailTemplates } = require('../utils/email');
 const { logAction } = require('../utils/auditLogger');
 
@@ -68,6 +68,18 @@ exports.registerCompany = async (req, res) => {
     // Back-link company → createdBy
     createdCompany.createdBy = createdUser._id;
     await createdCompany.save({ validateBeforeSave: false });
+
+    // ── Generate Notification if Website is Missing ─────────────────────
+    if (!companyWebsite || companyWebsite.trim() === '') {
+      await Notification.create({
+        company: createdCompany._id,
+        user: createdUser._id,
+        title: 'Complete Company Profile',
+        message: 'Your company website is missing. Please update it in Company Settings for a complete profile.',
+        type: 'warning',
+        link: '/settings/company'
+      });
+    }
 
     const token = createdUser.getSignedJwtToken();
 

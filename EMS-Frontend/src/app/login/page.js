@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 
-function LoginForm() {
+function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -16,7 +16,7 @@ function LoginForm() {
     setError('');
     setLoading(true);
     try {
-      const user = await login(form);
+      await login(form);
       router.replace('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
@@ -26,88 +26,151 @@ function LoginForm() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <div className="auth-logo-icon">E</div>
+    <div className="auth-page" style={{ padding: '0', minHeight: '100vh', display: 'flex' }}>
+      {/* Left side Banner - Professional & Premium */}
+      <div className="login-banner" style={{ 
+        flex: '1.2', 
+        backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.8)), url("https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '60px',
+        color: 'white'
+      }}>
+        <div className="auth-logo" style={{ marginBottom: 'auto' }}>
+          <div className="auth-logo-icon" style={{ backgroundColor: 'white', color: 'var(--primary-dark)' }}>E</div>
           <div>
-            <h1>EMS ERP</h1>
-            <span>Tsrijanali IT Services</span>
+            <h1 style={{ color: 'white', fontSize: '24px' }}>EMS ERP</h1>
+            <span style={{ color: 'rgba(255,255,255,0.7)' }}>Empowering Business Efficiency</span>
+          </div>
+        </div>
+        
+        <div style={{ maxWidth: '500px' }}>
+          <h2 style={{ fontSize: '48px', fontWeight: '800', lineHeight: '1.1', marginBottom: '24px' }}>
+            Welcome back to your workspace.
+          </h2>
+          <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.8)', lineHeight: '1.6', marginBottom: '32px' }}>
+            Manage your workforce, track attendance, and handle payroll with our unified ERP platform designed for modern enterprises.
+          </p>
+          
+          <div style={{ display: 'flex', gap: '40px', marginTop: '20px' }}>
+            <div>
+              <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--primary-light)' }}>99.9%</div>
+              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>System Uptime</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--primary-light)' }}>256-bit</div>
+              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>AES Encryption</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--primary-light)' }}>24/7</div>
+              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>Support Available</div>
+            </div>
           </div>
         </div>
 
-        <h2>Welcome back</h2>
-        <p>Sign in to your account to continue</p>
+        <div style={{ marginTop: 'auto', fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>
+          Trusted by over 500+ growing companies worldwide.
+        </div>
+      </div>
+
+      {/* Right side Form */}
+      <div className="login-form-container" style={{ 
+        flex: '0.8',
+        backgroundColor: '#0f172a',
+        padding: '40px 80px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
+      }}>
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ fontSize: '32px', fontWeight: '700', color: 'white' }}>Sign In</h2>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: '8px', fontSize: '15px' }}>Access your enterprise dashboard</p>
+        </div>
 
         {error && (
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#fca5a5', fontSize: 13 }}>
+          <div style={{ 
+            marginBottom: 24, padding: '14px 18px', background: 'rgba(239,68,68,0.1)', 
+            border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, color: '#fca5a5', fontSize: '14px',
+            display: 'flex', alignItems: 'center', gap: '12px'
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div className="auth-form-group">
-            <label>Email Address</label>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Address</label>
             <input
               type="email"
-              placeholder="admin@tsrijanali.com"
+              placeholder="admin@company.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
               autoComplete="email"
+              style={{ padding: '14px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}
             />
           </div>
 
           <div className="auth-form-group">
-            <label>Password</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 0 }}>Password</label>
+              <Link href="/forgot-password" style={{ fontSize: '13px', color: 'var(--primary-light)', fontWeight: '500' }}>
+                Forgot Password?
+              </Link>
+            </div>
             <input
               type="password"
-              placeholder="Enter your password"
+              placeholder="••••••••"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
               autoComplete="current-password"
+              style={{ padding: '14px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-            <a href="/forgot-password" style={{ fontSize: 13, color: 'rgba(99,102,241,0.9)' }}>
-              Forgot password?
-            </a>
-          </div>
-
-          <button type="submit" className="btn-auth" disabled={loading}>
+          <button 
+            type="submit" 
+            className="btn-auth" 
+            disabled={loading}
+            style={{ 
+              padding: '16px', 
+              borderRadius: '12px',
+              marginTop: '10px',
+              fontSize: '16px',
+              fontWeight: '700',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3)'
+            }}
+          >
             {loading ? (
               <>
                 <div className="loading-spinner" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }}></div>
                 Signing in...
               </>
-            ) : 'Sign In'}
+            ) : 'Sign In to Dashboard'}
           </button>
         </form>
 
-        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+        <div style={{ marginTop: '40px', textAlign: 'center', fontSize: '15px', color: 'rgba(255,255,255,0.45)' }}>
           Don&apos;t have an account?{' '}
           <Link
             href="/register"
-            style={{ color: 'rgba(129,140,248,0.9)', fontWeight: 600, textDecoration: 'none' }}
+            style={{ color: 'var(--primary-light)', fontWeight: '600', textDecoration: 'none' }}
           >
-            Create one
+            Register your company
           </Link>
-          <div style={{ marginTop: 12 }}>
-            <Link 
-              href="/register-company"
-              style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '15px', display: 'inline-block' }}
-            >
-              Are you an employer? Register Company
-            </Link>
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-export default function LoginPage() {
-  return <LoginForm />;
+export default function LoginPageContainer() {
+  return <LoginPage />;
 }

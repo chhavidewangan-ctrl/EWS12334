@@ -48,8 +48,10 @@
   --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: none !important; -ms-overflow-style: none !important; }
-*::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+/* Use a more subtle way to handle scrollbars globally if needed, instead of !important display none */
+html { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar { display: none; }
 html { font-size: 14px; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -81,9 +83,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .sidebar-logo-text { overflow: hidden; white-space: nowrap; }
 .sidebar-logo-text h1 { font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
 .sidebar-logo-text span { font-size: 11px; color: var(--text-muted); }
-.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 0; }
-.sidebar-nav::-webkit-scrollbar { width: 4px; }
-.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 0; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.sidebar-nav::-webkit-scrollbar { width: 4px; display: block !important; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 .nav-group { margin-bottom: 4px; }
 .nav-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); padding: 12px 20px 4px; white-space: nowrap; overflow: hidden; }
 .sidebar.collapsed .nav-group-label { opacity: 0; }
@@ -321,7 +324,71 @@ tbody tr:hover { background: var(--bg-hover); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Filter Bar */
-.filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
-.search-input { display: flex; align-items: center; gap: 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; flex: 1; min-width: 200px; }
-.search-input input { background: transparent; border: none; color: var(--text-primary); font-size: 13px; width: 100%; }
-.search-input input::placeholder { color: var(--text-muted); }
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.search-input:focus-within {
+  border-color: var(--primary);
+}
+
+.search-input input {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 100%;
+}
+/* Auth Pages Split Layout */
+.register-banner, .login-banner {
+  flex: 1.2;
+  display: flex;
+}
+.register-form-container, .login-form-container {
+  flex: 0.8;
+  overflow-y: auto;
+}
+
+@media (max-width: 1100px) {
+  .register-banner, .login-banner { display: none !important; }
+  .register-form-container, .login-form-container { 
+    width: 100% !important; 
+    max-width: 800px; 
+    margin: 0 auto; 
+    padding: 32px 24px !important;
+    min-height: 100vh;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .register-form-container, .login-form-container { 
+    padding: 24px 16px !important; 
+  }
+}
+
+.register-form-container::-webkit-scrollbar, .login-form-container::-webkit-scrollbar {
+  width: 5px;
+}
+.register-form-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.register-form-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}

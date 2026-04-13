@@ -190,23 +190,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Today's Company Stats (Admin) */}
-      {todayStats && (
-        <div className="stats-grid" style={{ marginBottom: 20 }}>
-          {[
-            { label: 'Total Employees', value: todayStats.totalEmployees, color: '#6366f1' },
-            { label: 'Present', value: todayStats.present, color: '#10b981' },
-            { label: 'Absent', value: todayStats.absent, color: '#ef4444' },
-            { label: 'Late', value: todayStats.late, color: '#f59e0b' },
-            { label: 'On Leave', value: todayStats.onLeave, color: '#0ea5e9' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ padding: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
+
 
       {/* Filters */}
       <div className="filter-bar">
