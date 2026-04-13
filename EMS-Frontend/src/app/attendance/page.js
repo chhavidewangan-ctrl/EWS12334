@@ -192,7 +192,7 @@ export default function AttendancePage() {
 
       {/* Today's Company Stats (Admin) */}
       {todayStats && (
-        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 20 }}>
+        <div className="stats-grid" style={{ marginBottom: 20 }}>
           {[
             { label: 'Total Employees', value: todayStats.totalEmployees, color: '#6366f1' },
             { label: 'Present', value: todayStats.present, color: '#10b981' },
@@ -210,22 +210,26 @@ export default function AttendancePage() {
 
       {/* Filters */}
       <div className="filter-bar">
-        <div>
+        <div style={{ flex: '1 1 120px' }}>
           <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>From</label>
           <input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} />
         </div>
-        <div>
+        <div style={{ flex: '1 1 120px' }}>
           <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>To</label>
           <input type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} />
         </div>
-        <select className="form-control" style={{ width: 140, alignSelf: 'flex-end' }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          {['present','absent','late','half_day','on_leave','holiday','weekend'].map(s => (
-            <option key={s} value={s}>{s.replace('_', ' ')}</option>
-          ))}
-        </select>
-        <button className="btn btn-primary" style={{ alignSelf: 'flex-end' }} onClick={() => { setPage(1); fetchAttendance(); }}>Apply</button>
-        <button className="btn btn-secondary" style={{ alignSelf: 'flex-end' }} onClick={() => { setStartDate(''); setEndDate(''); setStatusFilter(''); setPage(1); }}>Reset</button>
+        <div style={{ flex: '1 1 140px', alignSelf: 'flex-end' }}>
+          <select className="form-control" style={{ width: '100%' }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
+            <option value="">All Status</option>
+            {['present','absent','late','half_day','on_leave','holiday','weekend'].map(s => (
+              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignSelf: 'flex-end', flex: '1 1 160px' }}>
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { setPage(1); fetchAttendance(); }}>Apply</button>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setStartDate(''); setEndDate(''); setStatusFilter(''); setPage(1); }}>Reset</button>
+        </div>
       </div>
 
       {/* Table */}

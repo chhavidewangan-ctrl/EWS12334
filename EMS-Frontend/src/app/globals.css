@@ -279,10 +279,22 @@ tbody tr:hover { background: var(--bg-hover); }
   .navbar { left: 0 !important; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid { grid-template-columns: 1fr; }
-  .page-content { padding: 16px; }
+  .page-content { padding: 16px; margin-top: var(--navbar-height); }
   .navbar-search { display: none; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .page-header > div { width: 100%; }
+  .navbar { padding: 0 16px; }
+  .filter-bar { padding: 12px; gap: 8px; }
 }
-@media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .auth-card { padding: 24px 20px; border-radius: 12px; }
+  .modal { border-radius: 0; max-height: 100vh; height: 100vh; }
+}
+@media (max-width: 480px) { 
+  .stats-grid { grid-template-columns: 1fr; } 
+  .btn { width: 100%; justify-content: center; }
+  .pagination { justify-content: center; }
+}
 
 /* Dashboard Grid */
 .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }

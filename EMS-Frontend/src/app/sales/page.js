@@ -203,7 +203,7 @@ export default function SalesPage() {
       </div>
 
       {/* Stats */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+      <div className="stats-grid" style={{ marginBottom: 20 }}>
         {[
           { label: 'Total Sales', value: stats.total, color: '#6366f1' },
           { label: 'Paid', value: stats.paid, color: '#10b981' },

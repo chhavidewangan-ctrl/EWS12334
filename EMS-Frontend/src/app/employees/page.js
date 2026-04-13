@@ -210,7 +210,7 @@ export default function EmployeesPage() {
       </div>
 
       {stats && (
-        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+        <div className="stats-grid" style={{ marginBottom: 20 }}>
           {[
             { label: 'Total', value: stats.total, color: '#6366f1' },
             { label: 'Active', value: stats.active, color: '#10b981' },
@@ -226,24 +226,26 @@ export default function EmployeesPage() {
       )}
 
       <div className="filter-bar">
-        <div className="search-input" style={{ flex: 1 }}>
+        <div className="search-input" style={{ flex: '1 1 300px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
-          <input placeholder="Search by ID, department..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          <input placeholder="Search by name, ID, department..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        {(userRole === 'superadmin' || companies.length > 1) && (
-          <select className="form-control" style={{ width: 160 }} value={companyId} onChange={e => { setCompanyId(e.target.value); setPage(1); }}>
-            <option value="">All Companies</option>
-            {companies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 2 }}>
+          {(userRole === 'superadmin' || companies.length > 1) && (
+            <select className="form-control" style={{ flex: 1, minWidth: 140 }} value={companyId} onChange={e => { setCompanyId(e.target.value); setPage(1); }}>
+              <option value="">All Companies</option>
+              {companies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+            </select>
+          )}
+          <select className="form-control" style={{ flex: 1, minWidth: 140 }} value={department} onChange={e => { setDepartment(e.target.value); setPage(1); }}>
+            <option value="">All Departments</option>
+            {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
-        )}
-        <select className="form-control" style={{ width: 140 }} value={department} onChange={e => { setDepartment(e.target.value); setPage(1); }}>
-          <option value="">All Departments</option>
-          {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select className="form-control" style={{ width: 120 }} value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          {STATUS_OPTIONS.map(s => <option key={s} value={s} style={{ textTransform: 'capitalize' }}>{s}</option>)}
-        </select>
+          <select className="form-control" style={{ flex: 1, minWidth: 120 }} value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
+            <option value="">All Status</option>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s} style={{ textTransform: 'capitalize' }}>{s}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="card">
@@ -828,7 +830,7 @@ export default function EmployeesPage() {
               </button>
             </div>
 
-            <div id="id-card-capture" className={`id-card-premium ${idCardOrientation}`}>
+            <div id="id-card-capture" className={`id-card-premium ${idCardOrientation}`} style={{ transform: 'scale(var(--id-scale, 1))' }}>
               <div className="card-inner">
                 {idCardOrientation === 'horizontal' ? (
                   <div className="h-layout">
@@ -1055,6 +1057,18 @@ export default function EmployeesPage() {
             .btn-close:hover { background: rgba(255,255,255,0.15); }
             .btn-print { padding: 12px 30px; border-radius: 12px; background: white; color: black; border: none; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.3s; }
             .btn-print:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+
+            /* Responsive ID Card Overlay */
+            @media (max-width: 600px) {
+              .id-card-premium.horizontal { --id-scale: 0.8 !important; }
+              .id-card-premium.vertical { --id-scale: 0.9 !important; }
+              .action-btns { flex-direction: column; width: 100%; padding: 0 20px; }
+              .action-btns button { width: 100%; justify-content: center; }
+            }
+            @media (max-width: 400px) {
+              .id-card-premium.horizontal { --id-scale: 0.65 !important; }
+              .id-card-premium.vertical { --id-scale: 0.75 !important; }
+            }
 
             /* Print Fixes */
             @media print {
