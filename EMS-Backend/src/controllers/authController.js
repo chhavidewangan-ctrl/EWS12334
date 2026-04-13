@@ -128,7 +128,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
-    const user = await User.findOne({ email }).select('+password').populate('company', 'name logo');
+    const user = await User.findOne({ email }).select('+password').populate('company', 'name logo status');
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -137,7 +137,7 @@ exports.login = async (req, res) => {
     // Check Company status if user is not a superadmin
     if (user.role !== 'superadmin' && user.company) {
       if (user.company.status === 'pending') {
-        return res.status(401).json({ success: false, message: 'Your company registration is pending approval by Superadmin.' });
+        return res.status(401).json({ success: false, message: 'Your company registration is pending approval. Please wait 1-2 days for verification.' });
       }
       if (user.company.status === 'rejected') {
         return res.status(401).json({ success: false, message: 'Your company registration has been rejected.' });
@@ -145,7 +145,7 @@ exports.login = async (req, res) => {
     }
 
     if (!user.isActive) {
-      return res.status(401).json({ success: false, message: 'Your account is currently inactive. Please contact your administrator.' });
+      return res.status(401).json({ success: false, message: 'Your account is currently inactive. If you just registered, please wait 1-2 days for admin approval.' });
     }
 
     const isMatch = await user.matchPassword(password);

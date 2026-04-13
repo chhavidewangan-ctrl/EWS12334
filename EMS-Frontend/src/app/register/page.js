@@ -47,6 +47,7 @@ function RegisterForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState('');
 
   const [form, setForm] = useState({
@@ -71,48 +72,50 @@ function RegisterForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+    setErrors({});
+    let newErrors = {};
+
     // Core Required Fields
-    if (!form.firstName || !form.lastName || !form.email || !form.password || !form.companyName || !form.phone) {
-      setError('Please fill in all required fields.');
-      return;
-    }
+    const required = ['firstName', 'lastName', 'email', 'password', 'companyName', 'phone'];
+    required.forEach(field => {
+      if (!form[field]) newErrors[field] = 'Required field';
+    });
 
     // Email Format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email)) {
-      setError('Please enter a valid corporate email address.');
-      return;
+    if (form.email && !emailRegex.test(form.email)) {
+      newErrors.email = 'Invalid corporate email address';
     }
 
-    // Phone Format (India 10 digits)
+    // Phone Format
     const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(form.phone)) {
-      setError('Please enter a valid 10-digit Indian phone number (starting with 6-9).');
-      return;
+    if (form.phone && !phoneRegex.test(form.phone)) {
+      newErrors.phone = 'Invalid 10-digit Indian phone number';
     }
 
     // Password Strength
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return;
+    if (form.password && form.password.length < 6) {
+      newErrors.password = 'Must be at least 6 characters';
     }
 
-    // PIN Code (India 6 digits)
+    // PIN Code
     if (form.pincode && !/^\d{6}$/.test(form.pincode)) {
-      setError('Please enter a valid 6-digit PIN code.');
-      return;
+      newErrors.pincode = 'Invalid 6-digit PIN';
     }
 
-    // GSTIN (Optional 15 chars)
+    // GSTIN
     if (form.gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(form.gstNumber)) {
-      setError('Please enter a valid 15-character GSTIN format.');
-      return;
+      newErrors.gstNumber = 'Invalid GSTIN format';
     }
 
-    // PAN (Optional 10 chars)
+    // PAN
     if (form.panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(form.panNumber)) {
-      setError('Please enter a valid 10-character PAN format.');
+      newErrors.panNumber = 'Invalid PAN format';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setError('Please fix the errors below.');
       return;
     }
 
@@ -140,13 +143,7 @@ function RegisterForm() {
       };
 
       await authAPI.registerCompany(payload);
-      setSuccess('Request submitted! Wait for approval.');
-      setForm({
-        firstName: '', lastName: '', email: '', password: '', phone: '',
-        companyName: '', companyWebsite: '', industry: '', gstNumber: '', panNumber: '',
-        street: '', city: '', state: '', pincode: ''
-      });
-      setTimeout(() => router.replace('/login'), 3000);
+      setSuccess('true'); // Trigger modal
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed.');
     } finally {
@@ -225,25 +222,30 @@ function RegisterForm() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', marginBottom: '4px' }}>First Name</label>
-                  <input type="text" value={form.firstName} onChange={set('firstName')} placeholder="John" required style={{ padding: '10px', fontSize: '13px' }} />
+                  <input type="text" value={form.firstName} onChange={set('firstName')} placeholder="John" required style={{ padding: '10px', fontSize: '13px', border: errors.firstName ? '1px solid #ef4444' : '' }} />
+                  {errors.firstName && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.firstName}</span>}
                 </div>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', marginBottom: '4px' }}>Last Name</label>
-                  <input type="text" value={form.lastName} onChange={set('lastName')} placeholder="Doe" required style={{ padding: '10px', fontSize: '13px' }} />
+                  <input type="text" value={form.lastName} onChange={set('lastName')} placeholder="Doe" required style={{ padding: '10px', fontSize: '13px', border: errors.lastName ? '1px solid #ef4444' : '' }} />
+                  {errors.lastName && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.lastName}</span>}
                 </div>
               </div>
               <div className="auth-form-group" style={{ marginBottom: 0 }}>
                 <label style={{ fontSize: '11px', marginBottom: '4px' }}>Email Address</label>
-                <input type="email" value={form.email} onChange={set('email')} placeholder="admin@domain.com" required style={{ padding: '10px', fontSize: '13px' }} />
+                <input type="email" value={form.email} onChange={set('email')} placeholder="admin@domain.com" required style={{ padding: '10px', fontSize: '13px', border: errors.email ? '1px solid #ef4444' : '' }} />
+                {errors.email && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.email}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', marginBottom: '4px' }}>Password</label>
-                  <input type="password" value={form.password} onChange={set('password')} placeholder="••••••••" required style={{ padding: '10px', fontSize: '13px' }} />
+                  <input type="password" value={form.password} onChange={set('password')} placeholder="••••••••" required style={{ padding: '10px', fontSize: '13px', border: errors.password ? '1px solid #ef4444' : '' }} />
+                  {errors.password && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.password}</span>}
                 </div>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', marginBottom: '4px' }}>Phone</label>
-                  <input type="text" value={form.phone} onChange={set('phone')} placeholder="+91 ..." required style={{ padding: '10px', fontSize: '13px' }} />
+                  <input type="text" value={form.phone} onChange={set('phone')} placeholder="+91 ..." required style={{ padding: '10px', fontSize: '13px', border: errors.phone ? '1px solid #ef4444' : '' }} />
+                  {errors.phone && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.phone}</span>}
                 </div>
               </div>
             </div>
@@ -253,7 +255,8 @@ function RegisterForm() {
               <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--primary-light)', fontWeight: '700' }}>Organization</h3>
               <div className="auth-form-group" style={{ marginBottom: 0 }}>
                 <label style={{ fontSize: '11px', marginBottom: '4px' }}>Company Name</label>
-                <input type="text" value={form.companyName} onChange={set('companyName')} placeholder="Acme Corp" required style={{ padding: '10px', fontSize: '13px' }} />
+                <input type="text" value={form.companyName} onChange={set('companyName')} placeholder="Acme Corp" required style={{ padding: '10px', fontSize: '13px', border: errors.companyName ? '1px solid #ef4444' : '' }} />
+                {errors.companyName && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.companyName}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
@@ -278,11 +281,13 @@ function RegisterForm() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', marginBottom: '4px' }}>GSTIN (Optional)</label>
-                  <input type="text" value={form.gstNumber} onChange={set('gstNumber')} placeholder="00XXXX0000X0Z0" style={{ padding: '10px', fontSize: '13px' }} />
+                  <input type="text" value={form.gstNumber} onChange={set('gstNumber')} placeholder="00XXXX0000X0Z0" style={{ padding: '10px', fontSize: '13px', border: errors.gstNumber ? '1px solid #ef4444' : '' }} />
+                  {errors.gstNumber && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.gstNumber}</span>}
                 </div>
                 <div className="auth-form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', marginBottom: '4px' }}>PAN (Optional)</label>
-                  <input type="text" value={form.panNumber} onChange={set('panNumber')} placeholder="ABCDE0000F" style={{ padding: '10px', fontSize: '13px' }} />
+                  <input type="text" value={form.panNumber} onChange={set('panNumber')} placeholder="ABCDE0000F" style={{ padding: '10px', fontSize: '13px', border: errors.panNumber ? '1px solid #ef4444' : '' }} />
+                  {errors.panNumber && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.panNumber}</span>}
                 </div>
               </div>
             </div>
@@ -358,7 +363,10 @@ function RegisterForm() {
                   <option disabled style={{ background: '#1e293b' }}>Select State First</option>
                 )}
               </select>
-              <input type="text" value={form.pincode} onChange={set('pincode')} placeholder="PIN" style={{ padding: '10px', fontSize: '13px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }} />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <input type="text" value={form.pincode} onChange={set('pincode')} placeholder="PIN" style={{ padding: '10px', fontSize: '13px', backgroundColor: 'rgba(255,255,255,0.05)', border: errors.pincode ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }} />
+                {errors.pincode && <span style={{ color: '#fca5a5', fontSize: '10px', marginTop: '4px' }}>{errors.pincode}</span>}
+              </div>
             </div>
           </div>
 
@@ -373,6 +381,55 @@ function RegisterForm() {
           Already have an account? <Link href="/login" style={{ color: 'var(--primary-light)', fontWeight: '600' }}>Sign In</Link>
         </div>
       </div>
+      {/* Registration Success Modal */}
+      {success && (
+        <div className="modal-overlay" style={{ 
+          position: 'fixed', inset: 0, zIndex: 9999, 
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(2, 6, 23, 0.95)', backdropFilter: 'blur(12px)',
+          padding: '20px'
+        }}>
+          <div className="modal" style={{ 
+            maxWidth: '500px', 
+            textAlign: 'center', 
+            padding: '40px', 
+            background: 'linear-gradient(145deg, #1e293b, #0f172a)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(16, 185, 129, 0.1)'
+          }}>
+            <div style={{ 
+              width: '80px', height: '80px', background: 'rgba(16,185,129,0.1)', 
+              color: '#10b981', borderRadius: '24px', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
+              fontSize: '40px', border: '1.5px solid rgba(16, 185, 129, 0.3)'
+            }}>
+              ✅
+            </div>
+            <h3 style={{ fontSize: '26px', fontWeight: '800', color: 'white', marginBottom: '16px', letterSpacing: '-0.02em' }}>
+              Submission Successful!
+            </h3>
+            <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: '1.7', marginBottom: '32px', fontSize: '15px' }}>
+              We have received your request to set up <strong style={{color: 'white'}}>{form.companyName}</strong>. <br/><br/>
+              Our administrators will review your application for security compliance. You will receive an email confirmation and be able to log in within <strong style={{ color: '#10b981' }}>1 to 2 business days</strong>.
+            </div>
+            <button 
+              className="btn-auth" 
+              onClick={() => router.push('/login')}
+              style={{ 
+                padding: '16px', 
+                fontSize: '16px', 
+                fontWeight: '700',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)'
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

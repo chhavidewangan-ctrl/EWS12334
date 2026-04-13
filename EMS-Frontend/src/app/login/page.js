@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const [showPending, setShowPending] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +20,12 @@ function LoginPage() {
       await login(form);
       router.replace('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+      const msg = err.response?.data?.message || 'Invalid credentials. Please try again.';
+      if (msg.toLowerCase().includes('pending') || msg.toLowerCase().includes('approval')) {
+        setShowPending(true);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -167,6 +173,61 @@ function LoginPage() {
           </Link>
         </div>
       </div>
+      {/* Pending Approval Modal - Ultra Premium Centered */}
+      {showPending && (
+        <div className="modal-overlay" style={{ 
+          position: 'fixed', inset: 0, zIndex: 9999, 
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(2, 6, 23, 0.9)', backdropFilter: 'blur(10px)',
+          padding: '20px'
+        }}>
+          <div className="modal" style={{ 
+            maxWidth: '450px', 
+            textAlign: 'center', 
+            padding: '40px', 
+            background: 'linear-gradient(145deg, #1e293b, #0f172a)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(99, 102, 241, 0.1)'
+          }}>
+            <div style={{ 
+              width: '80px', height: '80px', background: 'rgba(245,158,11,0.1)', 
+              color: '#f59e0b', borderRadius: '24px', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
+              fontSize: '40px', border: '1.5px solid rgba(245,158,11,0.3)',
+              boxShadow: '0 0 20px rgba(245,158,11,0.1) inset'
+            }}>
+              ✨
+            </div>
+            <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'white', marginBottom: '16px', letterSpacing: '-0.02em' }}>
+              Registration under Review
+            </h3>
+            <div style={{ 
+              color: 'rgba(255,255,255,0.7)', 
+              lineHeight: '1.7', 
+              marginBottom: '32px', 
+              fontSize: '15px' 
+            }}>
+              Your enterprise profile has been successfully submitted! <br/><br/>
+              To ensure data security, our administrators verify every new workspace. Your account will be activated within <strong style={{ color: 'var(--primary-light)' }}>1 to 2 business days</strong>.
+            </div>
+            <button 
+              className="btn-auth" 
+              onClick={() => setShowPending(false)}
+              style={{ 
+                padding: '16px', 
+                fontSize: '16px', 
+                fontWeight: '700',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
