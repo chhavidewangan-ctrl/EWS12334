@@ -182,87 +182,239 @@ export default function PayrollPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-            <div className="modal-body payslip-print-area" style={{ overflowY: 'auto', flex: 1, paddingRight: 8 }}>
+            <div className="modal-body payslip-print-area" style={{ overflowY: 'auto', flex: 1, padding: '20px', backgroundColor: '#fff', color: '#000' }}>
               <style jsx>{`
-                div::-webkit-scrollbar { width: 4px; }
-                div::-webkit-scrollbar-track { background: transparent; }
-                div::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+                .payslip-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  border: 2px solid #000;
+                  font-family: 'Arial', sans-serif;
+                  font-size: 13px;
+                }
+                .payslip-table th, .payslip-table td {
+                  border: 1px solid #000;
+                  padding: 6px 10px;
+                  text-align: left;
+                }
+                .bg-light { background-color: #fff9e6; }
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .font-bold { font-weight: bold; }
+                
                 @media print {
                   body * { visibility: hidden; }
                   .payslip-print-area, .payslip-print-area * { visibility: visible; }
-                  .payslip-print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; }
+                  .payslip-print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
                   .no-print { display: none !important; }
+                  .modal-header, .modal-footer { display: none !important; }
+                  .modal { border: none !important; box-shadow: none !important; }
                 }
               `}</style>
               
-              {/* Company Header */}
-              <div style={{ textAlign: 'center', marginBottom: 24, borderBottom: '2px solid var(--border)', paddingBottom: 16 }}>
-                <h1 style={{ margin: 0, color: 'var(--primary)', fontSize: 24, textTransform: 'uppercase' }}>{user?.company?.name || 'EMS ERP'}</h1>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {user?.company?.email && <span>{user.company.email}</span>}
-                  {user?.company?.phone && <span> | {user.company.phone}</span>}
-                </div>
-                <div style={{ marginTop: 8, fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>PAYSLIP FOR {MONTHS[showPayslip.month-1].toUpperCase()} {showPayslip.year}</div>
-              </div>
+              <table className="payslip-table">
+                {/* Main Header */}
+                <tbody>
+                  <tr>
+                    <td rowSpan="3" width="30%" className="text-center">
+                      <img src="/logo.png" alt="Srijana Logo" style={{ height: '60px' }} />
+                    </td>
+                    <td colSpan="3" className="text-center font-bold" style={{ fontSize: '18px' }}>
+                      {showPayslip.company?.name?.toUpperCase() || 'TSRIJANALI FOOD AND SERVICES PVT LTD'}
+                    </td>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Employee Details</div>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>{showPayslip.employee?.user?.firstName} {showPayslip.employee?.user?.lastName}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{showPayslip.employee?.designation} | {showPayslip.employee?.department}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID: {showPayslip.employee?.employeeId}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Status</div>
-                  <span className={`tag tag-${statusColor[showPayslip.status]}`}>{showPayslip.status.toUpperCase()}</span>
-                </div>
-              </div>
+                  </tr>
+                  <tr>
+                    <td colSpan="3" className="text-center" style={{ fontSize: '11px' }}>
+                      {showPayslip.company?.address ? (
+                        typeof showPayslip.company.address === 'object' ? (
+                          [showPayslip.company.address.street, showPayslip.company.address.city, showPayslip.company.address.state, showPayslip.company.address.country, showPayslip.company.address.pincode].filter(Boolean).join(', ')
+                        ) : showPayslip.company.address
+                      ) : 'Mahadev Tata Motors ke Samne, Bank Of Baroda ke Baju, Naya Dhamtari Road Deopuri Raipur'}
+                    </td>
+                  </tr>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
-                  <h4 style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: 'var(--success)', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>EARNINGS</h4>
-                  {Object.entries(showPayslip.earnings||{}).filter(([,v])=>v>0).map(([k,v])=>(
-                    <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'4px 0' }}>
-                      <span style={{ textTransform:'capitalize', color:'var(--text-secondary)' }}>{k.replace(/([A-Z])/g,' $1')}</span>
-                      <span style={{ fontWeight:500 }}>{fmt(v)}</span>
-                    </div>
-                  ))}
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, fontWeight:700, marginTop:8, padding:'8px 0', borderTop:'1px solid var(--border)', color:'var(--success)' }}>
-                    <span>Gross Salary</span><span>{fmt(showPayslip.totalEarnings)}</span>
-                  </div>
-                </div>
-                <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
-                  <h4 style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: 'var(--danger)', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>DEDUCTIONS</h4>
-                  {Object.entries(showPayslip.deductions||{}).filter(([,v])=>v>0).map(([k,v])=>(
-                    <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'4px 0' }}>
-                      <span style={{ textTransform:'capitalize', color:'var(--text-secondary)' }}>{k.replace(/([A-Z])/g,' $1')}</span>
-                      <span style={{ fontWeight:500, color:'var(--danger)' }}>-{fmt(v)}</span>
-                    </div>
-                  ))}
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, fontWeight:700, marginTop:8, padding:'8px 0', borderTop:'1px solid var(--border)', color:'var(--danger)' }}>
-                    <span>Total Deductions</span><span>-{fmt(showPayslip.totalDeductions)}</span>
-                  </div>
-                </div>
-              </div>
 
-              <div style={{ marginTop:20, padding:16, background:'linear-gradient(135deg,rgba(99,102,241,0.05),rgba(14,165,233,0.05))', border: '1px solid var(--primary)', borderRadius: 8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:15, fontWeight:700 }}>NET SALARY PAYABLE</span>
-                <span style={{ fontSize:22, fontWeight:800, color:'var(--primary)' }}>{fmt(showPayslip.netSalary)}</span>
-              </div>
+                  <tr>
+                    <td width="30%" className="text-center font-bold">Pay Slip</td>
+                    <td colSpan="2" className="text-center font-bold bg-light">
+                      {MONTHS[showPayslip.month-1].substring(0,3)}-{showPayslip.year.toString().substring(2)}
+                    </td>
+                  </tr>
 
-              <div style={{ marginTop:20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                <div style={{ fontSize:11, color:'var(--text-muted)', lineHeight: 1.5 }}>
-                  <strong>Attendance Summary:</strong><br />
-                  Present: {showPayslip.attendanceSummary?.presentDays || 0} days<br />
-                  Absent: {showPayslip.attendanceSummary?.absentDays || 0} days<br />
-                  Leaves: {showPayslip.attendanceSummary?.leaveDays || 0} days
+                  {/* Employee Details Row 1 */}
+                  <tr>
+                    <td className="font-bold">Employee Name</td>
+                    <td>{showPayslip.employee?.user?.firstName} {showPayslip.employee?.user?.lastName}</td>
+                    <td className="font-bold">Bank Name</td>
+                    <td className="bg-light">{showPayslip.employee?.bankDetails?.bankName || 'N/A'}</td>
+                  </tr>
+                  {/* Employee Details Row 2 */}
+                  <tr>
+                    <td className="font-bold">Employee ID</td>
+                    <td>{showPayslip.employee?.employeeId}</td>
+                    <td className="font-bold">Bank A/c No</td>
+                    <td>{showPayslip.employee?.bankDetails?.accountNumber || 'N/A'}</td>
+                  </tr>
+                  {/* Employee Details Row 3 */}
+                  <tr>
+                    <td className="font-bold">Designation</td>
+                    <td>{showPayslip.employee?.designation}</td>
+                    <td className="font-bold">PAN No.</td>
+                    <td>{showPayslip.employee?.documents?.panNumber || 'NIL'}</td>
+                  </tr>
+                  {/* Employee Details Row 4 */}
+                  <tr>
+                    <td className="font-bold">Department,</td>
+                    <td>{showPayslip.employee?.department}</td>
+                    <td className="font-bold">UAN</td>
+                    <td>{showPayslip.employee?.documents?.uanNumber || 'NIL'}</td>
+                  </tr>
+                  {/* Employee Details Row 5 */}
+                  <tr>
+                    <td className="font-bold">Date of Joining</td>
+                    <td>{showPayslip.employee?.joiningDate ? new Date(showPayslip.employee.joiningDate).toLocaleDateString('en-GB') : '-'}</td>
+                    <td colSpan="2"></td>
+                  </tr>
+                  {/* Employee Details Row 6 */}
+                  <tr>
+                    <td className="font-bold">Gross Salary</td>
+                    <td className="bg-light">{showPayslip.grossSalary || 0}</td>
+                    <td colSpan="2"></td>
+                  </tr>
+
+                  {/* Earnings and Deductions Header */}
+                  <tr>
+                    <td colSpan="2" className="text-center font-bold">Earnings</td>
+                    <td colSpan="2" className="text-center font-bold">Deductions</td>
+                  </tr>
+
+                  {/* Table Content */}
+                  <tr>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" style={{ border: 'none', borderRight: '1px solid #000' }}>Basic Salary</td>
+                            <td style={{ border: 'none' }} className="text-right">₹ {showPayslip.earnings?.basicSalary?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td colSpan="2" rowSpan="3" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr style={{ height: '80px' }}>
+                            <td className="text-center font-bold" width="50%" style={{ border: 'none', borderRight: '1px solid #000' }}>TOTAL LEAVE</td>
+                            <td className="text-center" style={{ border: 'none' }}>{showPayslip.attendanceSummary?.leaveDays || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" style={{ border: 'none', borderRight: '1px solid #000' }}>HRA</td>
+                            <td style={{ border: 'none' }} className="text-right">₹ {showPayslip.earnings?.hra?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" style={{ border: 'none', borderRight: '1px solid #000' }}>Conveyance Allowances</td>
+                            <td style={{ border: 'none' }} className="text-right">₹ {showPayslip.earnings?.conveyance?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" style={{ border: 'none', borderRight: '1px solid #000' }}>Extra Duty</td>
+                            <td style={{ border: 'none' }} className="text-right">₹ {showPayslip.earnings?.extraDuty?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" style={{ border: 'none', borderRight: '1px solid #000' }}>Food & Accommodation</td>
+                            <td style={{ border: 'none' }} className="text-right">₹ {showPayslip.deductions?.food?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan="2" style={{ border: 'none' }}></td>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" style={{ border: 'none', borderRight: '1px solid #000' }}>Transportation</td>
+                            <td style={{ border: 'none' }} className="text-right">₹ {showPayslip.deductions?.transportation?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" className="font-bold" style={{ border: 'none', borderRight: '1px solid #000' }}>EGross Salary</td>
+                            <td style={{ border: 'none' }} className="text-right font-bold">₹ {showPayslip.totalEarnings?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td colSpan="2" style={{ padding: 0 }}>
+                      <table width="100%" style={{ border: 'none', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td width="60%" className="font-bold" style={{ border: 'none', borderRight: '1px solid #000' }}>Total Deductions</td>
+                            <td style={{ border: 'none' }} className="text-right font-bold">₹ {showPayslip.totalDeductions?.toLocaleString() || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+
+                  {/* Net Pay */}
+                  <tr>
+                    <td colSpan="2" className="text-center font-bold">Net Pay</td>
+                    <td colSpan="2" className="text-right font-bold" style={{ fontSize: '16px' }}>
+                      ₹ {showPayslip.netSalary?.toLocaleString() || 0}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ borderTop: '1px solid #000', width: '150px', marginTop: '40px' }}></div>
+                  <div style={{ fontSize: '12px' }}>Employee Signature</div>
                 </div>
-                <div style={{ textAlign: 'right', alignSelf: 'flex-end' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 20 }}>Authorized Signatory</div>
-                  <div style={{ marginTop: 5, borderTop: '1px solid #000', width: 120, marginLeft: 'auto' }}></div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ borderTop: '1px solid #000', width: '150px', marginTop: '40px' }}></div>
+                  <div style={{ fontSize: '12px' }}>Authorized Signatory</div>
                 </div>
               </div>
             </div>
+
             <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <button className="btn btn-secondary" onClick={() => setShowPayslip(null)}>Close</button>
               <button className="btn btn-primary" onClick={() => window.print()}>Print Payslip</button>
